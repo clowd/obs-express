@@ -5,6 +5,7 @@
 
 libobs/
 include/
+build/
 
 # User-specific files
 *.rsuser
