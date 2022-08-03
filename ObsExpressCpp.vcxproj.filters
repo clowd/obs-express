@@ -18,12 +18,21 @@
     <ClCompile Include="ObsExpressCpp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="getscreens.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="msgpack.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="argh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="getscreens.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="json.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

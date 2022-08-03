@@ -177,10 +177,13 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="getscreens.cpp" />
     <ClCompile Include="ObsExpressCpp.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="argh.h" />
+    <ClInclude Include="getscreens.h" />
+    <ClInclude Include="json.hpp" />
     <ClInclude Include="msgpack.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
