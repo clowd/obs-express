@@ -106,21 +106,10 @@ namespace argh
             add_params(pre_reg_names);
         }
 
-        parser(const char* const argv[], int mode = PREFER_FLAG_FOR_UNREG_OPTION)
-        {
-            parse(argv, mode);
-        }
-
-        parser(int argc, const char* const argv[], int mode = PREFER_FLAG_FOR_UNREG_OPTION)
-        {
-            parse(argc, argv, mode);
-        }
-
         void add_param(std::string const& name);
         void add_params(std::initializer_list<char const* const> init_list);
 
-        void parse(const char* const argv[], int mode = PREFER_FLAG_FOR_UNREG_OPTION);
-        void parse(int argc, const char* const argv[], int mode = PREFER_FLAG_FOR_UNREG_OPTION);
+        void parse(std::vector<std::string> args, int mode = PREFER_FLAG_FOR_UNREG_OPTION);
 
         std::multiset<std::string>               const& flags()    const { return flags_; }
         std::multimap<std::string, std::string>  const& params()   const { return params_; }
@@ -190,25 +179,13 @@ namespace argh
 
     //////////////////////////////////////////////////////////////////////////
 
-    inline void parser::parse(const char* const argv[], int mode)
-    {
-        int argc = 0;
-        for (auto argvp = argv; *argvp; ++argc, ++argvp);
-        parse(argc, argv, mode);
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-
-    inline void parser::parse(int argc, const char* const argv[], int mode /*= PREFER_FLAG_FOR_UNREG_OPTION*/)
+    inline void parser::parse(std::vector<std::string> args, int mode /*= PREFER_FLAG_FOR_UNREG_OPTION*/)
     {
         // clear out possible previous parsing remnants
         flags_.clear();
         params_.clear();
         pos_args_.clear();
-
-        // convert to strings
-        args_.resize(static_cast<decltype(args_)::size_type>(argc));
-        std::transform(argv, argv + argc, args_.begin(), [](const char* const arg) { return arg;  });
+        args_ = args;
 
         // parse line
         for (auto i = 0u; i < args_.size(); ++i)

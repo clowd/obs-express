@@ -178,7 +178,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="getscreens.cpp" />
-    <ClCompile Include="ObsExpressCpp.cpp" />
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="argh.h" />
