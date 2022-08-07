@@ -185,11 +185,52 @@ int CalcCRF(int outputX, int outputY, int crf, bool lowCPUx264)
 	return crf - int(crfResReduction);
 }
 
+std::function<void(uint32_t x, uint32_t y, float opacity, float scale)> update_tracker;
+uint64_t lastMouseClick;
+mouse_info lastMouseClickPosition;
+bool mouseVisible;
+#define ANIMATION_DURATION ((double)400) // ms * ns
+void frame_tick(void* priv, float seconds)
+{
+	auto time = os_gettime_ns() / 1000000;
+	auto mouseData = get_mouse_info();
+	if (mouseData.pressed) {
+		lastMouseClickPosition = mouseData;
+		lastMouseClick = time;
+	}
+
+	auto lastClickAgo = time - lastMouseClick;
+	if (lastClickAgo < ANIMATION_DURATION) {
+		mouseVisible = true;
+		// max 85% opacity
+		float opacity = (1 - (lastClickAgo / ANIMATION_DURATION)) * 85;
+		float mouseZoom = lastMouseClickPosition.dpi / 96;
+
+		// radius: min 15, will grow +35 to max of 50 (*dpi)
+		float radius = (10 + ((lastClickAgo / ANIMATION_DURATION) * 30)) * mouseZoom;
+
+		// scale: intendedRenderedSize/actualImageSize - the tracker.png is 100x100
+		float scale = radius / 50;
+
+		auto x = lastMouseClickPosition.x - radius;
+		auto y = lastMouseClickPosition.y - radius;
+
+		update_tracker(x, y, opacity, scale);
+		//cout << "mouse visible: " << opacity << std::endl;
+	}
+	else if (mouseVisible) {
+		mouseVisible = false;
+		update_tracker(0, 0, 0, 1);
+		//cout << "mouse removed..." << std::endl;
+
+	}
+}
+
 void run(vector<string> arguments)
 {
 	// handle command line arguments
 	argh::parser cmdl;
-	cmdl.add_params({ "adapter", "captureRegion", "speakers", "microphones", "fps", "crf", "maxOutputWidth", "maxOutputHeight", "outputFile", "trackerColor"});
+	cmdl.add_params({ "adapter", "captureRegion", "speakers", "microphones", "fps", "crf", "maxOutputWidth", "maxOutputHeight", "output", "trackerColor"});
 	cmdl.parse(arguments);
 
 	bool help = cmdl[{ "h", "help" }];
@@ -209,7 +250,8 @@ void run(vector<string> arguments)
 		cout << "  --trackerColor     The color of the tracker (eg. 'r,g,b')" << std::endl;
 		cout << "  --lowCpuMode       Maximize performance if using CPU encoding" << std::endl;
 		cout << "  --hwAccel          Use hardware encoding if available" << std::endl;
-		cout << "  --outputFile       The file name of the generated recording" << std::endl;
+		cout << "  --pause            Wait for key-press before recording" << std::endl;
+		cout << "  --output           The file name of the generated recording" << std::endl;
 		return;
 	}
 
@@ -231,10 +273,10 @@ void run(vector<string> arguments)
 	string tmpCaptureRegion, tmpTrackerColor, outputFile;
 	cmdl("captureRegion") >> tmpCaptureRegion;
 	cmdl("trackerColor", "255,0,0") >> tmpTrackerColor;
-	cmdl("outputFile") >> outputFile;
+	cmdl("output") >> outputFile;
 
 	if (tmpCaptureRegion.empty() || outputFile.empty())
-		throw std::exception("Required parameters: captureRegion, outputFile");
+		throw std::exception("Required parameters: captureRegion, output");
 
 	Rect captureRegion = parse_rect(tmpCaptureRegion);
 	Color trackerColor = parse_color(tmpTrackerColor);
@@ -413,6 +455,39 @@ void run(vector<string> arguments)
 		getchar();
 	}
 
+	if (true) // tracker
+	{
+		auto opt = obs_data_create();
+		obs_data_set_bool(opt, "unload", true);
+		obs_data_set_string(opt, "file", ".\\tracker.png");
+		obs_source_t* source = obs_source_create("image_source", "mouse_highlight", opt, nullptr);
+		obs_data_release(opt);
+
+		auto fopt = obs_data_create();
+		obs_data_set_int(fopt, "opacity", 100);
+		obs_data_set_int(fopt, "color", RGB(trackerColor.GetR(), trackerColor.GetG(), trackerColor.GetB()));
+		obs_source_t* filter = obs_source_create("color_filter", "mouse_color_correction", fopt, nullptr);
+		obs_data_addref(fopt);
+		obs_data_release(fopt);
+
+		obs_source_filter_add(source, filter);
+		obs_sceneitem_t* sceneItem = obs_scene_add(scene, source);
+
+		update_tracker = [&](uint32_t x, uint32_t y, float opacity, float scale) {
+			vec2 pos{ x - captureRegion.X , y - captureRegion.Y };
+			obs_sceneitem_set_pos(sceneItem, &pos);
+			vec2 vscale{ scale, scale };
+			obs_sceneitem_set_scale(sceneItem, &vscale);
+
+			auto opt_opacity = obs_data_create();
+			obs_data_set_int(opt_opacity, "opacity", (int32_t)opacity);
+			obs_source_update(filter, opt_opacity);
+			obs_data_release(opt_opacity);
+		};
+
+		obs_add_tick_callback(frame_tick, NULL);
+	}
+
 	obs_output_start(muxer);
 	cout << "Started recording" << std::endl;
 
@@ -436,9 +511,12 @@ void run(vector<string> arguments)
 		cout << status << std::endl;
 	}
 
+	if (trackerEnabled) obs_remove_tick_callback(frame_tick, NULL);
+
 	cout << "Cancel requested. Starting Shutdown" << std::endl;
 
 	obs_output_stop(muxer);
+	Sleep(1000);
 	obs_shutdown();
 
 	cout << "Exiting" << std::endl;
