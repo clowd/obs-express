@@ -468,7 +468,7 @@ void run(vector<string> arguments)
 		getchar();
 	}
 
-	if (true) // tracker
+	if (trackerEnabled) // tracker
 	{
 		auto opt = obs_data_create();
 		obs_data_set_bool(opt, "unload", true);
