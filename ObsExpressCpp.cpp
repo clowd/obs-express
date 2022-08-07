@@ -103,19 +103,17 @@ Rect parse_rect(const string& input) {
 
 void run(int argc, char* argv[])
 {
-	// per monitor dpi aware so winapi does not lie to us
-	SetProcessDpiAwareness(PROCESS_DPI_AWARENESS::PROCESS_PER_MONITOR_DPI_AWARE);
-
 	// handle command line arguments
 	argh::parser cmdl;
-	cmdl.add_params({ "adapter", "captureRegion", "speakers", "microphones", "fps", "maxOutputWidth", "maxOutputHeight", "outputFile" });
+	cmdl.add_params({ "adapter", "captureRegion", "speakers", "microphones", "fps", "cq", "maxOutputWidth", "maxOutputHeight", "outputFile" });
 	cmdl.parse(argc, argv);
 
 	bool pause = cmdl["pause"];
 
-	uint16_t adapter, fps, maxOutputWidth, maxOutputHeight;
+	uint16_t adapter, fps, cq, maxOutputWidth, maxOutputHeight;
 	cmdl("adapter", 0) >> adapter;
-	cmdl("fps", 30) >> fps;
+	cmdl("fps", 120) >> fps;
+	cmdl("cq", 24) >> cq;
 	cmdl("maxOutputWidth", 0) >> maxOutputWidth;
 	cmdl("maxOutputHeight", 0) >> maxOutputHeight;
 
@@ -156,9 +154,6 @@ void run(int argc, char* argv[])
 	if (!obs_startup("en-US", nullptr, nullptr))
 		throw std::exception("Unable to start OBS");
 
-	obs_load_all_modules();
-	obs_log_loaded_modules();
-
 	obs_video_info vvi{};
 	vvi.adapter = adapter;
 	vvi.base_width = captureRegion.Width;
@@ -169,8 +164,8 @@ void run(int argc, char* argv[])
 	vvi.output_format = video_format::VIDEO_FORMAT_NV12;
 	vvi.output_width = (uint32_t)outputSize.Width;
 	vvi.output_height = (uint32_t)outputSize.Height;
-	vvi.scale_type = obs_scale_type::OBS_SCALE_BILINEAR;
-	vvi.colorspace = video_colorspace::VIDEO_CS_DEFAULT;
+	vvi.scale_type = obs_scale_type::OBS_SCALE_BICUBIC;
+	vvi.colorspace = video_colorspace::VIDEO_CS_709;
 	vvi.gpu_conversion = true;
 	vvi.range = video_range_type::VIDEO_RANGE_PARTIAL;
 
@@ -185,6 +180,9 @@ void run(int argc, char* argv[])
 	if (!obs_reset_audio(&avi))
 		throw std::exception("Unable to initialize audio");
 
+	struct obs_module_failure_info mfi;
+	obs_load_all_modules2(&mfi);
+	obs_log_loaded_modules();
 	obs_post_load_modules();
 
 	if (!obs_initialized()) {
@@ -209,6 +207,7 @@ void run(int argc, char* argv[])
 		obs_data_set_string(opt, "device_id", id.second.c_str());
 		auto source = obs_source_create("wasapi_output_capture", "", opt, nullptr);
 		obs_set_output_source(channel++, source);
+		obs_data_release(opt);
 	}
 
 	for (auto& id : microphones)
@@ -217,6 +216,7 @@ void run(int argc, char* argv[])
 		obs_data_set_string(opt, "device_id", id.second.c_str());
 		auto source = obs_source_create("wasapi_input_capture", "", opt, nullptr);
 		obs_set_output_source(channel++, source);
+		obs_data_release(opt);
 	}
 
 	// display capture sources
@@ -231,10 +231,10 @@ void run(int argc, char* argv[])
 			auto opt = obs_data_create();
 			obs_data_set_bool(opt, "capture_cursor", true);
 			obs_data_set_int(opt, "monitor", i);
+			obs_source_t* source = obs_source_create("monitor_capture", "", opt, nullptr);
+			obs_data_release(opt);
 
-			auto source = obs_source_create("monitor_capture", "", opt, nullptr);
-			auto sceneItem = obs_scene_add(scene, source);
-
+			obs_sceneitem_t* sceneItem = obs_scene_add(scene, source);
 			vec2 pos{ displayBounds.X - captureRegion.X , displayBounds.Y - captureRegion.Y };
 			obs_sceneitem_set_pos(sceneItem, &pos);
 		}
@@ -271,14 +271,29 @@ void run(int argc, char* argv[])
 
 	// create encoders
 	auto videoOptions = obs_data_create();
-	// TODO;
-	auto encVideo = obs_video_encoder_create(selectedEncoder.c_str(), "", videoOptions, nullptr);
-	auto encAudio = obs_audio_encoder_create("ffmpeg_aac", "", nullptr, 0, nullptr);
+
+	//if (selectedEncoder == "jim_nvenc")
+	//{
+	//	//bool lookahead = obs_data_get_bool(settings, "lookahead");
+	//	obs_data_set_string(videoOptions, "rate_control", "CQP");
+	//	obs_data_set_string(videoOptions, "profile", "high");
+	//	obs_data_set_int(videoOptions, "cqp", cq);
+	//	obs_data_set_int(videoOptions, "bitrate", 0);
+	//	// below are perf related settings
+	//	obs_data_set_string(videoOptions, "preset", "llhq");
+	//	obs_data_set_bool(videoOptions, "lookahead", false);
+	//}
+	//else if (selectedEncoder == "obs_x264")
+	//{
+	//}
+
+	auto encVideo = obs_video_encoder_create(selectedEncoder.c_str(), "video_encoder", videoOptions, nullptr);
+	auto encAudio = obs_audio_encoder_create("ffmpeg_aac", "audio_encoder", nullptr, 0, nullptr);
 
 	// create output muxer
 	auto muxerOptions = obs_data_create();
 	obs_data_set_string(muxerOptions, "path", outputFile.c_str());
-	auto muxer = obs_output_create("ffmpeg_muxer", "", muxerOptions, nullptr);
+	auto muxer = obs_output_create("ffmpeg_muxer", "main_output", muxerOptions, nullptr);
 
 	obs_encoder_set_video(encVideo, obs_get_video());
 	obs_encoder_set_audio(encAudio, obs_get_audio());
@@ -326,6 +341,8 @@ int main(int argc, char* argv[])
 {
 	try
 	{
+		// per monitor dpi aware so winapi does not lie to us
+		SetProcessDpiAwareness(PROCESS_DPI_AWARENESS::PROCESS_PER_MONITOR_DPI_AWARE);
 		run(argc, argv);
 		return 0;
 	}
