@@ -23,9 +23,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="msgpack.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="argh.h">
       <Filter>Header Files</Filter>
     </ClInclude>

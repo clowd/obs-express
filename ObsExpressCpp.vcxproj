@@ -184,7 +184,6 @@
     <ClInclude Include="argh.h" />
     <ClInclude Include="getscreens.h" />
     <ClInclude Include="json.hpp" />
-    <ClInclude Include="msgpack.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
