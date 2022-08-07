@@ -73,25 +73,25 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <IntDir>$(SolutionDir)obj\$(Platform)\$(Configuration)\</IntDir>
-    <OutDir>$(SolutionDir)build\bin\64bit\</OutDir>
+    <OutDir>$(SolutionDir)build64\rundir\MinSizeRel\bin\64bit\</OutDir>
     <TargetName>obs-express</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <IntDir>$(SolutionDir)obj\$(Platform)\$(Configuration)\</IntDir>
-    <OutDir>$(SolutionDir)build\bin\64bit\</OutDir>
+    <OutDir>$(SolutionDir)build64\rundir\MinSizeRel\bin\64bit\</OutDir>
     <TargetName>obs-express</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <IntDir>$(SolutionDir)obj\$(Platform)\$(Configuration)\</IntDir>
-    <OutDir>$(SolutionDir)build\bin\64bit\</OutDir>
+    <OutDir>$(SolutionDir)build64\rundir\MinSizeRel\bin\64bit\</OutDir>
     <TargetName>obs-express</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <IntDir>$(SolutionDir)obj\$(Platform)\$(Configuration)\</IntDir>
-    <OutDir>$(SolutionDir)build\bin\64bit\</OutDir>
+    <OutDir>$(SolutionDir)build64\rundir\MinSizeRel\bin\64bit\</OutDir>
     <TargetName>obs-express</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -108,9 +108,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-    <PreBuildEvent>
-      <Command>xcopy /e /i /y $(SolutionDir)libobs\ $(SolutionDir)build\</Command>
-    </PreBuildEvent>
+    <PreBuildEvent />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -131,9 +129,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-    <PreBuildEvent>
-      <Command>xcopy /e /i /y $(SolutionDir)libobs\ $(SolutionDir)build\</Command>
-    </PreBuildEvent>
+    <PreBuildEvent />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -149,9 +145,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-    <PreBuildEvent>
-      <Command>xcopy /e /i /y $(SolutionDir)libobs\ $(SolutionDir)build\</Command>
-    </PreBuildEvent>
+    <PreBuildEvent />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -172,9 +166,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-    <PreBuildEvent>
-      <Command>xcopy /e /i /y $(SolutionDir)libobs\ $(SolutionDir)build\</Command>
-    </PreBuildEvent>
+    <PreBuildEvent />
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="getscreens.cpp" />

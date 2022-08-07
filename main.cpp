@@ -4,27 +4,22 @@
 #include <sstream>
 #include <iterator>
 #include <unordered_set>
+
 #include "windows.h"
 #include "gdiplus.h"
 #include "shellscalingapi.h"
+
 #include "argh.h"
 #include "getscreens.h"
 #include "json.hpp"
-#include "include/obs.h"
-#include "include/util/platform.h"
+#include "obs-studio/libobs/obs.h"
+#include "obs-studio/libobs/util/platform.h"
 
 #pragma comment(lib, "user32.lib") 
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "shcore.lib")
 #pragma comment(lib, "gdiplus.lib")
 #pragma comment(lib, "obs.lib")
-
-//#pragma comment(lib, "gdi32.lib")
-//#pragma comment(lib, "shcore.lib")
-//#pragma comment(lib, "ole32.lib")
-//#pragma comment(lib, "shell32.lib")
-//#pragma comment(lib, "msimg32.lib")
-//#pragma comment(lib, "winmm.lib")
 
 using namespace std;
 using namespace Gdiplus;
@@ -185,7 +180,26 @@ int CalcCRF(int outputX, int outputY, int crf, bool lowCPUx264)
 	return crf - int(crfResReduction);
 }
 
-std::function<void(uint32_t x, uint32_t y, float opacity, float scale)> update_tracker;
+Rect captureRegion;
+obs_source_t* mouseFilter = 0;
+obs_sceneitem_t* mouseSceneItem = 0;
+void update_tracker(uint32_t x, uint32_t y, float opacity, float scale) {
+
+	if (mouseFilter == nullptr || mouseSceneItem == nullptr) {
+		return;
+	}
+
+	vec2 pos{ x - captureRegion.X , y - captureRegion.Y };
+	obs_sceneitem_set_pos(mouseSceneItem, &pos);
+	vec2 vscale{ scale, scale };
+	obs_sceneitem_set_scale(mouseSceneItem, &vscale);
+
+	auto opt_opacity = obs_data_create();
+	obs_data_set_int(opt_opacity, "opacity", (int32_t)opacity);
+	obs_source_update(mouseFilter, opt_opacity);
+	obs_data_release(opt_opacity);
+};
+
 uint64_t lastMouseClick;
 mouse_info lastMouseClickPosition;
 bool mouseVisible;
@@ -222,7 +236,6 @@ void frame_tick(void* priv, float seconds)
 		mouseVisible = false;
 		update_tracker(0, 0, 0, 1);
 		//cout << "mouse removed..." << std::endl;
-
 	}
 }
 
@@ -278,7 +291,7 @@ void run(vector<string> arguments)
 	if (tmpCaptureRegion.empty() || outputFile.empty())
 		throw std::exception("Required parameters: captureRegion, output");
 
-	Rect captureRegion = parse_rect(tmpCaptureRegion);
+	captureRegion = parse_rect(tmpCaptureRegion);
 	Color trackerColor = parse_color(tmpTrackerColor);
 
 	// calculate ideal canvas size
@@ -464,26 +477,17 @@ void run(vector<string> arguments)
 		obs_data_release(opt);
 
 		auto fopt = obs_data_create();
-		obs_data_set_int(fopt, "opacity", 100);
+		obs_data_set_int(fopt, "opacity", 0);
 		obs_data_set_int(fopt, "color", RGB(trackerColor.GetR(), trackerColor.GetG(), trackerColor.GetB()));
 		obs_source_t* filter = obs_source_create("color_filter", "mouse_color_correction", fopt, nullptr);
-		obs_data_addref(fopt);
 		obs_data_release(fopt);
 
 		obs_source_filter_add(source, filter);
 		obs_sceneitem_t* sceneItem = obs_scene_add(scene, source);
+		obs_sceneitem_addref(sceneItem);
 
-		update_tracker = [&](uint32_t x, uint32_t y, float opacity, float scale) {
-			vec2 pos{ x - captureRegion.X , y - captureRegion.Y };
-			obs_sceneitem_set_pos(sceneItem, &pos);
-			vec2 vscale{ scale, scale };
-			obs_sceneitem_set_scale(sceneItem, &vscale);
-
-			auto opt_opacity = obs_data_create();
-			obs_data_set_int(opt_opacity, "opacity", (int32_t)opacity);
-			obs_source_update(filter, opt_opacity);
-			obs_data_release(opt_opacity);
-		};
+		mouseFilter = filter;
+		mouseSceneItem = sceneItem;
 
 		obs_add_tick_callback(frame_tick, NULL);
 	}
@@ -491,7 +495,6 @@ void run(vector<string> arguments)
 	obs_output_start(muxer);
 	cout << "Started recording" << std::endl;
 
-	json status;
 	while (!cancelRequested) {
 		Sleep(1000);
 
@@ -503,11 +506,11 @@ void run(vector<string> arguments)
 
 		auto frameTime = (double)obs_get_average_frame_time_ns() / 1000000.0;
 
+		json status;
 		status["droppedFrames"] = totalDropped;
 		status["droppedFramesPerc"] = percent;
 		status["fps"] = obs_get_active_fps();
 		status["avgTimeToRenderFrame"] = frameTime;
-
 		cout << status << std::endl;
 	}
 
