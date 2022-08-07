@@ -246,10 +246,14 @@ void run(vector<string> arguments)
 	cmdl.add_params({ "adapter", "captureRegion", "speakers", "microphones", "fps", "crf", "maxOutputWidth", "maxOutputHeight", "output", "trackerColor"});
 	cmdl.parse(arguments);
 
+	cout << std::endl;
+	cout << "obs-express v0.0.1, a light weight command line screen recorder." << std::endl;
+	cout << "bundled with obs-studio v" << obs_get_version_string() << std::endl;
+	cout << std::endl;
+
 	bool help = cmdl[{ "h", "help" }];
 	if (help) {
-
-		cout << "OBS Express, a light weight command line screen recorder." << std::endl;
+		cout << "Options: " << std::endl;
 		cout << "  --help             Show this help" << std::endl;
 		cout << "  --adapter          The numerical index of the graphics device to use" << std::endl;
 		cout << "  --captureRegion    The region of the desktop to record (eg. 'x,y,w,h') " << std::endl;
