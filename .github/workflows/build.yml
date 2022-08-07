@@ -22,4 +22,11 @@ jobs:
         shell: pwsh
         run: ./configure-obs.ps1
 
-      
+      - name: Build obs-express
+        shell: pwsh
+        run: ./configure-obs.ps1
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          path: release.zip

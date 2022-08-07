@@ -1,0 +1,1 @@
+powershell -executionpolicy bypass .\pack-release.ps1

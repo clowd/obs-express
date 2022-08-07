@@ -8,6 +8,7 @@ include/
 build/
 build64/
 obs-build-dependencies/
+release.zip
 
 # User-specific files
 *.rsuser
