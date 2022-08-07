@@ -81,3 +81,16 @@ Invoke-External cmake -S ${CheckoutDir} -B "${BuildDirectoryActual}" @CmakeComma
 
 # Build OBS
 Invoke-External cmake --build "${BuildDirectoryActual}" --config ${BuildConfiguration}
+
+# Copy required files into output directory
+$BinDir = Resolve-Path -Path "${BuildDirectoryActual}/rundir/${BuildConfiguration}/bin/64bit"
+$DependenciesZip = Resolve-Path -Path "${CmakePrefixPath}.zip"
+
+# OBS dependencies
+Invoke-Expression "7z x `"$DependenciesZip`" -y -o`"$BinDir`" bin/*" 
+Move-Item -Path "$BinDir/bin/*" -Destination $BinDir -ErrorAction Ignore
+Remove-Item -Path "$BinDir/bin" -Recurse
+Remove-Item -Path "$BinDir/*.lib"
+
+# OBS-express dependencies
+Copy-Item ./tracker.png -Destination $BinDir
