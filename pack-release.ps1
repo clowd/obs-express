@@ -10,6 +10,6 @@ msbuild ObsExpressCpp.sln -p:Configuration=Release -p:Platform=x64
 $ReleaseDir = Resolve-Path -Path "build64/rundir/MinSizeRel"
 $BinDir = Resolve-Path -Path "$ReleaseDir/bin/64bit"
 
-Remove-Item -Path "$BinDir/*.pdb"
-Remove-Item -Path "release.zip"
+Remove-Item -Path "$BinDir/*.pdb" -ErrorAction Ignore
+Remove-Item -Path "release.zip" -ErrorAction Ignore
 seven a release.zip -y -mx9 `"${ReleaseDir}/*`"
