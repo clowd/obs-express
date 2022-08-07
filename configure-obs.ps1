@@ -1,6 +1,6 @@
 Param(
     [String]$BuildDirectory = "build",
-    [String]$ObsBuildBranch = "master",
+    #[String]$ObsBuildBranch = "master",
     [ValidateSet('x86', 'x64')]
     [String]$BuildArch = $(if (Test-Path variable:BuildArch) { "${BuildArch}" } else { ('x86', 'x64')[[System.Environment]::Is64BitOperatingSystem] }),
     [ValidateSet("Release", "RelWithDebInfo", "MinSizeRel", "Debug")]
@@ -17,7 +17,7 @@ if ($PSScriptRoot -eq $null) {
     Set-Location $PSScriptRoot
 }
 
-git clone -b ${ObsBuildBranch} --single-branch --recursive https://github.com/obsproject/obs-studio.git
+#git clone -b master --single-branch --recursive https://github.com/obsproject/obs-studio.git
 $CheckoutDir = Resolve-Path -Path "obs-studio"
 
 . ${CheckoutDir}/CI/windows/01_install_dependencies.ps1 -BuildArch $BuildArch -Quiet
@@ -68,11 +68,11 @@ $CmakeCommand = @(
     # "$(if (Test-Path Variable:$Quiet) { "-Wno-deprecated -Wno-dev --log-level=ERROR" })",
 
     "-DENABLE_AJA=OFF",
-    "-DENABLE_UI=ON",
+    "-DENABLE_UI=OFF",
     "-DENABLE_SCRIPTING=OFF",
     "-DENABLE_DECKLINK=OFF",
     "-DENABLE_VIRTUALCAM=OFF",
-    "-DENABLE_BROWSER=ON",
+    "-DENABLE_BROWSER=OFF",
     "-DENABLE_VLC=OFF",
     "-DENABLE_VST=OFF"
 )

@@ -6,6 +6,8 @@
 libobs/
 include/
 build/
+build64/
+obs-build-dependencies/
 
 # User-specific files
 *.rsuser

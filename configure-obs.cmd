@@ -1,0 +1,1 @@
+powershell -executionpolicy bypass .\configure-obs.ps1
