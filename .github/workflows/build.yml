@@ -1,0 +1,25 @@
+name: Build OBS-Express
+
+on: [ push, pull_request ]
+
+jobs:
+  build-windows:
+    name: Build
+    runs-on: windows-2022
+    env:
+      CMAKE_GENERATOR: 'Visual Studio 17 2022'
+      CMAKE_SYSTEM_VERSION: '10.0.18363.657'
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: 'Add msbuild to PATH'
+        uses: microsoft/setup-msbuild@v1.1
+      
+      - name: Configure and build obs-studio
+        shell: pwsh
+        run: ./configure-obs.ps1
+
+      
