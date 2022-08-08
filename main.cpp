@@ -8,6 +8,7 @@
 #include "windows.h"
 #include "gdiplus.h"
 #include "shellscalingapi.h"
+#include "process.h"
 
 #include "argh.h"
 #include "getscreens.h"
@@ -31,6 +32,16 @@ BOOL WINAPI ctrl_handler(DWORD fdwCtrlType)
 {
 	cancelRequested = true;
 	return TRUE; // indicate we have handled the signal and no further processing should happen
+}
+
+os_cpu_usage_info_t* cpuUsageInfo = nullptr;
+double getCPU_Percentage()
+{
+	double cpuPercentage = os_cpu_usage_info_query(cpuUsageInfo);
+	cpuPercentage *= 10;
+	cpuPercentage = trunc(cpuPercentage);
+	cpuPercentage /= 10;
+	return cpuPercentage;
 }
 
 vector<string> split_comma(const string& input) {
@@ -239,11 +250,54 @@ void frame_tick(void* priv, float seconds)
 	}
 }
 
+uint64_t startTimeMs = 0;
+void signal_started_recording(void* data, calldata_t* cd)
+{
+	cpuUsageInfo = os_cpu_usage_info_start();
+	startTimeMs = os_gettime_ns() / 1000000;
+	json rec_start;
+	rec_start["type"] = "started_recording";
+	cout << rec_start << std::endl;
+}
+
+void signal_stopped_recording(void* data, calldata_t* cd)
+{
+	// obs_shutdown() actually crashes, probably because we're not cleaning up all the resources beforehand.
+	// I don't really care to do this properly as this is a one-off recorder and the OS will clean up
+	Sleep(1000);
+
+	json rec_stop;
+	rec_stop["type"] = "stopped_recording";
+	cout << rec_stop << std::endl;
+
+	cout << "Exiting process" << std::endl;
+	ExitProcess(0);
+}
+
+unsigned int __stdcall read_input_proc(void* lpParam)
+{
+	while (true)
+	{
+		std::string str;
+		std::getline(std::cin, str);
+		if (str == "q" || str == "Q") 
+		{
+			cancelRequested = true;
+			break;
+		}
+		else if (!str.empty())
+		{
+			cout << "Unknown command: " << str << std::endl;
+		}
+	}
+	return 0;
+}
+
 void run(vector<string> arguments)
 {
 	// handle command line arguments
 	argh::parser cmdl;
-	cmdl.add_params({ "adapter", "captureRegion", "speakers", "microphones", "fps", "crf", "maxOutputWidth", "maxOutputHeight", "output", "trackerColor"});
+	cmdl.add_params({ "adapter", "captureRegion", "speakers", "microphones", "fps", "crf", "maxOutputWidth", "maxOutputHeight", "output", "trackerColor" });
 	cmdl.parse(arguments);
 
 	cout << std::endl;
@@ -316,7 +370,7 @@ void run(vector<string> arguments)
 	float dnsclperc = round((1 - ((outputSize.Width * outputSize.Height) / (captureRegion.Width * captureRegion.Height))) * 100);
 
 	if (dnsclperc > 0) {
-		cout << "Downscaling from " << captureRegion.Width << "x" << captureRegion.Height << " to " << outputSize.Width << "x" << outputSize.Height << " (-" << dnsclperc << ")" << std::endl;
+		cout << "Downscaling from " << captureRegion.Width << "x" << captureRegion.Height << " to " << outputSize.Width << "x" << outputSize.Height << " (-" << dnsclperc << "%)" << std::endl;
 	}
 
 	// do obs setup.
@@ -424,29 +478,29 @@ void run(vector<string> arguments)
 	cout << "Available OBS encoders: " << imploded.str() << std::endl;
 
 	obs_encoder_t* encVideo = nullptr;
-	if (hwAccel) 
+	if (hwAccel)
 	{
 		auto adjustedCrf = CalcCRF(outputSize.Width, outputSize.Height, crf, false);
 		cout << "Actual CRF: " << adjustedCrf << std::endl;
 
-		if (encoders.find("jim_nvenc") != encoders.end()) 
+		if (encoders.find("jim_nvenc") != encoders.end())
 		{
 			encVideo = obs_video_encoder_create("jim_nvenc", "enc_jim_nvenc", nullptr, nullptr);
 			UpdateRecordingSettings_nvenc(encVideo, adjustedCrf);
-		} 
-		else if (encoders.find("amd_amf_h264") != encoders.end()) 
+		}
+		else if (encoders.find("amd_amf_h264") != encoders.end())
 		{
 			encVideo = obs_video_encoder_create("amd_amf_h264", "enc_amd_amf_h264", nullptr, nullptr);
 			UpdateRecordingSettings_amd_cqp(encVideo, adjustedCrf);
-		} 
-		else if (encoders.find("obs_qsv11") != encoders.end()) 
+		}
+		else if (encoders.find("obs_qsv11") != encoders.end())
 		{
 			encVideo = obs_video_encoder_create("obs_qsv11", "enc_obs_qsv11", nullptr, nullptr);
 			UpdateRecordingSettings_qsv11(encVideo, adjustedCrf);
 		}
 	}
 
-	if (encVideo == nullptr) 
+	if (encVideo == nullptr)
 	{
 		auto adjustedCrfForCpu = CalcCRF(outputSize.Width, outputSize.Height, crf, lowCpuMode);
 		cout << "Actual CRF: " << adjustedCrfForCpu << std::endl;
@@ -467,10 +521,16 @@ void run(vector<string> arguments)
 	obs_output_set_video_encoder(muxer, encVideo);
 	obs_output_set_audio_encoder(muxer, encAudio, 0);
 
+	json rec_init;
+	rec_init["type"] = "initialized";
+	cout << rec_init << std::endl;
+
 	if (pause) {
 		cout << "Press any key to start recording" << std::endl;
 		getchar();
 	}
+
+	(HANDLE)_beginthreadex(NULL, 0, read_input_proc, nullptr, 0, nullptr);
 
 	if (trackerEnabled) // tracker
 	{
@@ -496,11 +556,22 @@ void run(vector<string> arguments)
 		obs_add_tick_callback(frame_tick, NULL);
 	}
 
+	cout << "Requesting output start" << std::endl;
+
+	signal_handler_t* signals = obs_output_get_signal_handler(muxer);
+	signal_handler_connect(signals, "start", signal_started_recording, nullptr);
+	signal_handler_connect(signals, "stop", signal_stopped_recording, nullptr);
+
 	obs_output_start(muxer);
-	cout << "Started recording" << std::endl;
 
 	while (!cancelRequested) {
 		Sleep(1000);
+
+		if (startTimeMs == 0) {
+			continue;
+		}
+
+		auto currentTimeMs = os_gettime_ns() / 1000000;
 
 		double percent = 0;
 		int totalDropped = obs_output_get_frames_dropped(muxer);
@@ -511,10 +582,13 @@ void run(vector<string> arguments)
 		auto frameTime = (double)obs_get_average_frame_time_ns() / 1000000.0;
 
 		json status;
-		status["droppedFrames"] = totalDropped;
-		status["droppedFramesPerc"] = percent;
+		status["timeMs"] = currentTimeMs - startTimeMs;
+		status["dropped"] = totalDropped;
+		status["droppedPerc"] = percent;
 		status["fps"] = obs_get_active_fps();
-		status["avgTimeToRenderFrame"] = frameTime;
+		status["frameTime"] = frameTime;
+		status["cpu"] = getCPU_Percentage();
+		status["type"] = "status";
 		cout << status << std::endl;
 	}
 
@@ -523,10 +597,12 @@ void run(vector<string> arguments)
 	cout << "Cancel requested. Starting Shutdown" << std::endl;
 
 	obs_output_stop(muxer);
-	Sleep(1000);
-	obs_shutdown();
 
-	cout << "Exiting" << std::endl;
+	// cleanup is handled by signal_stopped_recording in a different thread
+	for (int i = 0; i < 30; i++) {
+		Sleep(1000);
+	}
+	ExitProcess(-1);
 }
 
 std::string utf8_encode(const std::wstring& wstr)
