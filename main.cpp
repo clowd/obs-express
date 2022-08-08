@@ -262,14 +262,48 @@ void signal_started_recording(void* data, calldata_t* cd)
 	cout << rec_start << std::endl;
 }
 
+string get_output_error_string(int code)
+{
+	switch (code) {
+	case OBS_OUTPUT_SUCCESS:
+		return "Successfully stopped";
+	case OBS_OUTPUT_BAD_PATH:
+		return "The specified path was invalid";
+	case OBS_OUTPUT_CONNECT_FAILED:
+		return "Failed to connect to a server";
+	case OBS_OUTPUT_INVALID_STREAM:
+		return "Invalid stream path";
+	case OBS_OUTPUT_ERROR:
+		return "Generic error";
+	case OBS_OUTPUT_DISCONNECTED:
+		return "Unexpectedly disconnected";
+	case OBS_OUTPUT_UNSUPPORTED:
+		return "The settings, video/audio format, or codecs are unsupported by this output";
+	case OBS_OUTPUT_NO_SPACE:
+		return "Ran out of disk space";
+	case OBS_OUTPUT_ENCODE_ERROR:
+		return "Encoder error";
+	}
+}
+
 void signal_stopped_recording(void* data, calldata_t* cd)
 {
+	obs_output_t* output = (obs_output_t*)calldata_ptr(cd, "output");
+	int code = calldata_int(cd, "code");
+	const char* output_error = obs_output_get_last_error(output);
+
 	// obs_shutdown() actually crashes, probably because we're not cleaning up all the resources beforehand.
 	// I don't really care to do this properly as this is a one-off recorder and the OS will clean up
 	Sleep(1000);
 
 	json rec_stop;
 	rec_stop["type"] = "stopped_recording";
+	rec_stop["code"] = code;
+	rec_stop["message"] = get_output_error_string(code);
+	if (output_error != nullptr) {
+		rec_stop["error"] = output_error;
+	}
+
 	cout << rec_stop << std::endl;
 
 	cout << "Exiting process" << std::endl;
