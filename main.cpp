@@ -344,9 +344,9 @@ void run(vector<string> arguments)
 	auto microphones = cmdl.params("microphones");
 
 	string tmpCaptureRegion, tmpTrackerColor, outputFile;
-	cmdl("captureRegion") >> tmpCaptureRegion;
-	cmdl("trackerColor", "255,0,0") >> tmpTrackerColor;
-	cmdl("output") >> outputFile;
+	tmpCaptureRegion = cmdl("captureRegion").str();
+	tmpTrackerColor = cmdl("trackerColor", "255,0,0").str();
+	outputFile = cmdl("output").str();
 
 	if (tmpCaptureRegion.empty() || outputFile.empty())
 		throw std::exception("Required parameters: captureRegion, output");
