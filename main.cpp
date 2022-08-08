@@ -22,6 +22,8 @@
 #pragma comment(lib, "gdiplus.lib")
 #pragma comment(lib, "obs.lib")
 
+#define OBS_EXPRESS_VERSION "0.0.2"
+
 using namespace std;
 using namespace Gdiplus;
 using json = nlohmann::json;
@@ -280,7 +282,7 @@ unsigned int __stdcall read_input_proc(void* lpParam)
 	{
 		std::string str;
 		std::getline(std::cin, str);
-		if (str == "q" || str == "Q") 
+		if (str == "q" || str == "Q")
 		{
 			cancelRequested = true;
 			break;
@@ -301,7 +303,7 @@ void run(vector<string> arguments)
 	cmdl.parse(arguments);
 
 	cout << std::endl;
-	cout << "obs-express v0.0.1, a light weight command line screen recorder." << std::endl;
+	cout << "obs-express v" << OBS_EXPRESS_VERSION << ", a light weight command line screen recorder." << std::endl;
 	cout << "bundled with obs-studio v" << obs_get_version_string() << std::endl;
 	cout << std::endl;
 
