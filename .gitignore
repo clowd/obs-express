@@ -9,6 +9,7 @@ build/
 build64/
 obs-build-dependencies/
 release.zip
+obs-express.zip
 
 # User-specific files
 *.rsuser

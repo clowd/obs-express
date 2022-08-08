@@ -29,4 +29,4 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
-          path: release.zip
+          path: obs-express.zip
