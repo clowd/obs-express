@@ -310,7 +310,7 @@ void signal_stopped_recording(void* data, calldata_t* cd)
     cout << rec_stop << std::endl;
 
     cout << "Exiting process" << std::endl;
-    ExitProcess(0);
+    ExitProcess(code);
 }
 
 unsigned int __stdcall read_input_proc(void* lpParam)
