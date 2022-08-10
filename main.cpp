@@ -356,7 +356,8 @@ void run(vector<string> arguments)
         cout << "  --trackerColor     The color of the tracker (eg. 'r,g,b')" << std::endl;
         cout << "  --lowCpuMode       Maximize performance if using CPU encoding" << std::endl;
         cout << "  --hwAccel          Use hardware encoding if available" << std::endl;
-        cout << "  --pause            Wait for key-press before recording" << std::endl;
+        cout << "  --noCursor         Will not render cursor in recording" << std::endl;
+        cout << "  --pause            Wait for key-press before recording starts" << std::endl;
         cout << "  --output           The file name of the generated recording" << std::endl;
         return;
     }
@@ -365,6 +366,7 @@ void run(vector<string> arguments)
     bool trackerEnabled = cmdl["trackerEnabled"];
     bool lowCpuMode = cmdl["lowCpuMode"];
     bool hwAccel = cmdl["hwAccel"];
+    bool noCursor = cmdl["noCursor"];
 
     uint16_t adapter, fps, crf, maxOutputWidth, maxOutputHeight;
     cmdl("adapter", 0) >> adapter;
@@ -484,7 +486,7 @@ void run(vector<string> arguments)
 
         if (displayBounds.IntersectsWith(captureRegion)) {
             auto opt = obs_data_create();
-            obs_data_set_bool(opt, "capture_cursor", true);
+            obs_data_set_bool(opt, "capture_cursor", !noCursor);
             obs_data_set_int(opt, "monitor", i);
             obs_source_t* source = obs_source_create("monitor_capture", "", opt, nullptr);
             obs_data_release(opt);

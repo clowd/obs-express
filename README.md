@@ -21,6 +21,7 @@ The command line help is as follows:
   --trackerColor     The color of the tracker (eg. 'r,g,b')
   --lowCpuMode       Maximize performance if using CPU encoding
   --hwAccel          Use hardware encoding if available
+  --noCursor         Will not render cursor in recording
   --pause            Wait for key-press before recording
   --output           The file name of the generated recording
 ```
@@ -28,6 +29,8 @@ The command line help is as follows:
 The only required parameters are `captureRegion` and `output`. 
 
 Both the `speakers` and `microphone` parameters can be specified more than once, to record multiple devices. They support `default` being passed in as the value to use the default device, or the `{ID}` of the device as returned from `MMDeviceEnumerator`.
+
+Type 'q' and Enter, or 'Ctrl+C' to stop an in-progress recording.
 
 ### Compiling
 
