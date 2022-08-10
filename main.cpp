@@ -295,10 +295,6 @@ void signal_stopped_recording(void* data, calldata_t* cd)
     int code = calldata_int(cd, "code");
     const char* output_error = obs_output_get_last_error(output);
 
-    // obs_shutdown() actually crashes, probably because we're not cleaning up all the resources beforehand.
-    // I don't really care to do this properly as this is a one-off recorder and the OS will clean up
-    Sleep(1000);
-
     json rec_stop;
     rec_stop["type"] = "stopped_recording";
     rec_stop["code"] = code;
@@ -310,6 +306,9 @@ void signal_stopped_recording(void* data, calldata_t* cd)
     cout << rec_stop << std::endl;
 
     cout << "Exiting process" << std::endl;
+
+    // obs_shutdown() actually crashes, probably because we're not cleaning up all the resources beforehand.
+    // I don't really care to do this properly as this is a one-off recorder and the OS will clean up
     ExitProcess(code);
 }
 
