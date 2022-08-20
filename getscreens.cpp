@@ -8,19 +8,27 @@ BOOL __cdecl EnumMonitorCallback(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcM
 {
     std::vector<screen_info>& infos = *((std::vector<screen_info>*)dwData);
 
-    MONITORINFOEX mon_info{};
-    mon_info.cbSize = sizeof(MONITORINFOEX);
-    GetMonitorInfo(hMonitor, &mon_info);
+    MONITORINFOEXA mon_info{};
+    mon_info.cbSize = sizeof(MONITORINFOEXA);
+    GetMonitorInfoA(hMonitor, &mon_info);
 
     UINT dpiX, dpiY;
     GetDpiForMonitor(hMonitor, MDT_DEFAULT, &dpiX, &dpiY);
+
+    // we are using the 'A' functions here instead of 'W' only because OBS also does this and we need
+    // our id's to match what OBS is expecting.
+    DISPLAY_DEVICEA device;
+    device.cb = sizeof(device);
+    EnumDisplayDevicesA(mon_info.szDevice, 0, &device, EDD_GET_DEVICE_INTERFACE_NAME);
 
     infos.emplace_back(
         mon_info.rcMonitor.left,
         mon_info.rcMonitor.top,
         mon_info.rcMonitor.right - mon_info.rcMonitor.left,
         mon_info.rcMonitor.bottom - mon_info.rcMonitor.top,
-        dpiX);
+        dpiX,
+        device.DeviceID,
+        mon_info.szDevice);
 
     return TRUE;
 }
