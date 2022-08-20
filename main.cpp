@@ -488,6 +488,8 @@ void run(vector<string> arguments)
             auto opt = obs_data_create();
             obs_data_set_bool(opt, "capture_cursor", !noCursor);
             obs_data_set_int(opt, "monitor", i);
+            // https://github.com/obsproject/obs-studio/pull/7049 switches the property from 'monitor' to 'monitor_id'
+            obs_data_set_string(opt, "monitor_id", display.monitor_id);
             obs_source_t* source = obs_source_create("monitor_capture", "", opt, nullptr);
             obs_data_release(opt);
 
