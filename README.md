@@ -1,5 +1,5 @@
 ## obs-express
-This is a custom build of OBS, ffmpeg, and a light-weight executable wrapper. It is only 50mb uncompressed and is capable of recording and encoding a specific region of the screen at an extremely high speed thanks to OBS.
+This is a custom build of OBS, ffmpeg, and a light-weight executable wrapper. It is only 50mb (22mb compressed) and is capable of recording and encoding a specific region of the screen at an extremely high speed thanks to OBS.
 
 ------
 
