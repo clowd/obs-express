@@ -22,7 +22,7 @@
 #pragma comment(lib, "gdiplus.lib")
 #pragma comment(lib, "obs.lib")
 
-#define OBS_EXPRESS_VERSION "0.0.5"
+#define OBS_EXPRESS_VERSION "0.0.6"
 
 using namespace std;
 using namespace Gdiplus;
@@ -337,7 +337,8 @@ void run(vector<string> arguments)
 
     cout << std::endl;
     cout << "obs-express v" << OBS_EXPRESS_VERSION << ", a light weight command line screen recorder." << std::endl;
-    cout << "bundled with obs-studio v" << obs_get_version_string() << std::endl;
+    cout << "bundled with a fork of obs-studio v" << obs_get_version_string() << std::endl;
+    cout << "built for the Clowd screen capture utility (https://github.com/clowd/Clowd)" << std::endl;
     cout << std::endl;
 
     bool help = cmdl[{ "h", "help" }];
