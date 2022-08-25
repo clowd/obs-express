@@ -430,8 +430,16 @@ void run(vector<string> arguments)
     vvi.range = video_range_type::VIDEO_RANGE_PARTIAL;
 
     auto vr = obs_reset_video(&vvi);
-    if (vr != OBS_VIDEO_SUCCESS)
-        throw std::exception("Unable to initialize video, error code: " + vr);
+    if (vr != OBS_VIDEO_SUCCESS) {
+        cout << "ERROR: Unable to initialize d3d11, error code: " << to_string(vr) << std::endl;
+        // if we fail to initialise d3d11, let's try again with opengl
+        vvi.graphics_module = "libobs-opengl";
+        vr = obs_reset_video(&vvi);
+        if (vr != OBS_VIDEO_SUCCESS) {
+            cout << "ERROR: Unable to initialize open-gl, error code: " << to_string(vr) << std::endl;
+            throw std::exception("Could not initialize video pipeline");
+        }
+    }
 
     obs_audio_info avi{};
     avi.samples_per_sec = 44100;
