@@ -67,7 +67,7 @@ $CmakeCommand = @(
     # "$(if (Test-Path Env:CI) { "-DOBS_BUILD_NUMBER=${Env:GITHUB_RUN_ID}" })",
     # "$(if (Test-Path Variable:$Quiet) { "-Wno-deprecated -Wno-dev --log-level=ERROR" })",
 
-    "-DOBS_VERSION_OVERRIDE=28.0.0-rc1-express"
+    "-DOBS_VERSION_OVERRIDE=28.0.1-express"
     "-DENABLE_AJA=OFF",
     "-DENABLE_UI=OFF",
     "-DENABLE_SCRIPTING=OFF",
