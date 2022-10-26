@@ -60,6 +60,20 @@ vector<string> split_comma(const string& input)
     return result;
 }
 
+vector<string> split_space(const string& input)
+{
+    stringstream ss(input);
+    vector<string> result;
+
+    while (ss.good()) {
+        string substr;
+        getline(ss, substr, ' ');
+        result.push_back(substr);
+    }
+
+    return result;
+}
+
 Rect parse_rect(const string& input)
 {
     auto parts = split_comma(input);
@@ -312,19 +326,48 @@ void signal_stopped_recording(void* data, calldata_t* cd)
     ExitProcess(code);
 }
 
+vector<obs_source_t*> spkDevices{};
+vector<obs_source_t*> micDevices{};
+
 unsigned int __stdcall read_input_proc(void* lpParam)
 {
-    while (true) {
+    while (!cancelRequested) {
         std::string str;
         std::getline(std::cin, str);
+        auto words = split_space(str);
+
         if (str == "q" || str == "Q") {
+            cout << "Quit command received." << std::endl;
             cancelRequested = true;
-            break;
         }
+
+        else if (words.size() == 3 && (words[0] == "mute" || words[0] == "unmute")) {
+            vector<obs_source_t*>& lst = spkDevices;
+            if (words[1] == "s") {}
+            else if (words[1] == "m") {
+                lst = micDevices;
+            }
+            else {
+                cout << "Unknown device type: " << words[1] << std::endl;
+                continue;
+            }
+
+            auto idx = stoi(words[2]);
+            if (idx < lst.size()) {
+                obs_source_set_muted(lst[idx], words[0] == "mute");
+                cout << "Audio device " << idx << ": " << words[0] << "d." << std::endl;
+            }
+            else {
+                cout << "Audio device " << idx << " out of range." << std::endl;
+            }
+        }
+
         else if (!str.empty()) {
             cout << "Unknown command: " << str << std::endl;
         }
     }
+
+    cout << "stdin read thread has exited." << std::endl;
     return 0;
 }
 
@@ -476,6 +519,7 @@ void run(vector<string> arguments)
         auto source = obs_source_create("wasapi_output_capture", "", opt, nullptr);
         obs_set_output_source(channel++, source);
         obs_data_release(opt);
+        spkDevices.push_back(source);
     }
 
     for (auto& id : microphones) {
@@ -484,6 +528,7 @@ void run(vector<string> arguments)
         auto source = obs_source_create("wasapi_input_capture", "", opt, nullptr);
         obs_set_output_source(channel++, source);
         obs_data_release(opt);
+        micDevices.push_back(source);
     }
 
     // display capture sources
