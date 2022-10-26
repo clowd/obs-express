@@ -22,7 +22,7 @@
 #pragma comment(lib, "gdiplus.lib")
 #pragma comment(lib, "obs.lib")
 
-#define OBS_EXPRESS_VERSION "0.0.7"
+#define OBS_EXPRESS_VERSION "0.0.8"
 
 using namespace std;
 using namespace Gdiplus;
