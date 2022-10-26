@@ -7,6 +7,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ObsExpressCpp", "ObsExpress
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F200E3F9-0DC0-4B5D-9861-2BEE96FDC80B}"
 	ProjectSection(SolutionItems) = preProject
+		.github\workflows\build.yml = .github\workflows\build.yml
 		configure-obs.ps1 = configure-obs.ps1
 		LICENSE = LICENSE
 		pack-release.ps1 = pack-release.ps1
