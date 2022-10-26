@@ -28,11 +28,14 @@ using namespace std;
 using namespace Gdiplus;
 using json = nlohmann::json;
 
+HANDLE startHandle;
 bool cancelRequested = false;
 
 BOOL WINAPI ctrl_handler(DWORD fdwCtrlType)
 {
+    cout << "Received exit signal." << std::endl;
     cancelRequested = true;
+    SetEvent(startHandle);
     return TRUE; // indicate we have handled the signal and no further processing should happen
 }
 
@@ -336,34 +339,47 @@ unsigned int __stdcall read_input_proc(void* lpParam)
         std::getline(std::cin, str);
         auto words = split_space(str);
 
-        if (str == "q" || str == "Q") {
+        if (str == "q" || str == "quit" || str == "exit") {
             cout << "Quit command received." << std::endl;
             cancelRequested = true;
+            SetEvent(startHandle);
+        }
+
+        else if (str == "start") {
+            cout << "Start command received." << std::endl;
+            SetEvent(startHandle);
         }
 
         else if (words.size() == 3 && (words[0] == "mute" || words[0] == "unmute")) {
-            vector<obs_source_t*>& lst = spkDevices;
-            if (words[1] == "s") {}
+            bool isMuted = words[0] == "mute";
+            if (words[1] == "s") {
+                auto idx = stoi(words[2]);
+                if (idx < spkDevices.size()) {
+                    obs_source_set_muted(spkDevices[idx], isMuted);
+                    cout << "Audio speaker device " << idx << ": " << words[0] << "d." << std::endl;
+                }
+                else {
+                    cout << "Audio speaker device " << idx << " out of range." << std::endl;
+                }
+            }
             else if (words[1] == "m") {
-                lst = micDevices;
+                auto idx = stoi(words[2]);
+                if (idx < micDevices.size()) {
+                    obs_source_set_muted(micDevices[idx], isMuted);
+                    cout << "Audio microphone device " << idx << ": " << words[0] << "d." << std::endl;
+                }
+                else {
+                    cout << "Audio microphone device " << idx << " out of range." << std::endl;
+                }
             }
             else {
-                cout << "Unknown device type: " << words[1] << std::endl;
+                cout << "Unknown audio device type: " << words[1] << std::endl;
                 continue;
-            }
-
-            auto idx = stoi(words[2]);
-            if (idx < lst.size()) {
-                obs_source_set_muted(lst[idx], words[0] == "mute");
-                cout << "Audio device " << idx << ": " << words[0] << "d." << std::endl;
-            }
-            else {
-                cout << "Audio device " << idx << " out of range." << std::endl;
             }
         }
 
         else if (!str.empty()) {
-            cout << "Unknown command: " << str << std::endl;
+            cout << "Unknown command or invalid arguments: " << str << std::endl;
         }
     }
 
@@ -503,9 +519,6 @@ void run(vector<string> arguments)
 
     cout << "OBS version " + string(obs_get_version_string()) + " loaded successfully." << std::endl;
 
-    // catch ctrl events and shut down obs gracefully
-    SetConsoleCtrlHandler(ctrl_handler, TRUE);
-
     // create scene
     int channel = 0;
     auto scene = obs_scene_create("main");
@@ -605,16 +618,26 @@ void run(vector<string> arguments)
     obs_output_set_video_encoder(muxer, encVideo);
     obs_output_set_audio_encoder(muxer, encAudio, 0);
 
+    // catch ctrl events and shut down obs gracefully
+    SetConsoleCtrlHandler(ctrl_handler, TRUE);
+
     json rec_init;
     rec_init["type"] = "initialized";
     cout << rec_init << std::endl;
 
+    // read std-input for commands
+    startHandle = CreateEvent(NULL, TRUE, FALSE, NULL);
+    (HANDLE)_beginthreadex(NULL, 0, read_input_proc, nullptr, 0, nullptr);
+
     if (pause) {
-        cout << "Press any key to start recording" << std::endl;
-        getchar();
+        cout << ">>>> Type 'start' + Enter to start recording." << std::endl;
+        WaitForSingleObject(startHandle, INFINITE);
     }
 
-    (HANDLE)_beginthreadex(NULL, 0, read_input_proc, nullptr, 0, nullptr);
+    if (cancelRequested) {
+        cout << "Cancel requested. No output yet. Exiting process." << std::endl;
+        ExitProcess(0);
+    }
 
     if (trackerEnabled) // tracker
     {
