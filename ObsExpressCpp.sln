@@ -5,6 +5,14 @@ VisualStudioVersion = 17.1.32319.34
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ObsExpressCpp", "ObsExpressCpp.vcxproj", "{AB677678-5476-4E54-AC70-F4237823AF50}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F200E3F9-0DC0-4B5D-9861-2BEE96FDC80B}"
+	ProjectSection(SolutionItems) = preProject
+		configure-obs.ps1 = configure-obs.ps1
+		LICENSE = LICENSE
+		pack-release.ps1 = pack-release.ps1
+		README.md = README.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64

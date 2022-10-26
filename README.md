@@ -28,9 +28,21 @@ The command line help is as follows:
 
 The only required parameters are `captureRegion` and `output`. 
 
-Both the `speakers` and `microphone` parameters can be specified more than once, to record multiple devices. They support `default` being passed in as the value to use the default device, or the `{ID}` of the device as returned from `MMDeviceEnumerator`.
+Both the `speakers` and `microphone` parameters can be specified more than once, to record multiple devices. 
+They support `default` being passed in as the value to use the default device, or the `{ID}` of the device as returned from `MMDeviceEnumerator`.
+Maximum 5 simultaneous audio devices.
 
-Type 'q' and Enter, or 'Ctrl+C' to stop an in-progress recording.
+### Realtime Commands
+
+While the recorder is running, you can provide the following commands via stdin:
+
+- `q` or `Ctrl+C`: Stop recording and quit.
+- `mute`: Mutes an audio device. Must provide the device type and index (order in which it was provided in command line arguments). 
+  Examples:
+  - Mute the first speaker device: `mute s 0`
+  - Mute the second microphone device: `mute m 1`
+- `unmute`: Unmutes an audio device. Same syntax as `mute`.
+
 
 ### Compiling
 
