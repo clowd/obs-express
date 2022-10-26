@@ -618,27 +618,6 @@ void run(vector<string> arguments)
     obs_output_set_video_encoder(muxer, encVideo);
     obs_output_set_audio_encoder(muxer, encAudio, 0);
 
-    // catch ctrl events and shut down obs gracefully
-    SetConsoleCtrlHandler(ctrl_handler, TRUE);
-
-    json rec_init;
-    rec_init["type"] = "initialized";
-    cout << rec_init << std::endl;
-
-    // read std-input for commands
-    startHandle = CreateEvent(NULL, TRUE, FALSE, NULL);
-    (HANDLE)_beginthreadex(NULL, 0, read_input_proc, nullptr, 0, nullptr);
-
-    if (pause) {
-        cout << ">>>> Type 'start' + Enter to start recording." << std::endl;
-        WaitForSingleObject(startHandle, INFINITE);
-    }
-
-    if (cancelRequested) {
-        cout << "Cancel requested. No output yet. Exiting process." << std::endl;
-        ExitProcess(0);
-    }
-
     if (trackerEnabled) // tracker
     {
         auto opt = obs_data_create();
@@ -663,11 +642,33 @@ void run(vector<string> arguments)
         obs_add_tick_callback(frame_tick, NULL);
     }
 
-    cout << "Requesting output start" << std::endl;
-
+    // obs signals
     signal_handler_t* signals = obs_output_get_signal_handler(muxer);
     signal_handler_connect(signals, "start", signal_started_recording, nullptr);
     signal_handler_connect(signals, "stop", signal_stopped_recording, nullptr);
+
+    // catch ctrl events and shut down obs gracefully
+    SetConsoleCtrlHandler(ctrl_handler, TRUE);
+
+    json rec_init;
+    rec_init["type"] = "initialized";
+    cout << rec_init << std::endl;
+
+    // read std-input for commands
+    startHandle = CreateEvent(NULL, TRUE, FALSE, NULL);
+    (HANDLE)_beginthreadex(NULL, 0, read_input_proc, nullptr, 0, nullptr);
+
+    if (pause) {
+        cout << ">>>> Type 'start' + Enter to start recording." << std::endl;
+        WaitForSingleObject(startHandle, INFINITE);
+    }
+
+    if (cancelRequested) {
+        cout << "Cancel requested. No output yet. Exiting process." << std::endl;
+        ExitProcess(0);
+    }
+
+    cout << "Requesting output start" << std::endl;
 
     obs_output_start(muxer);
 
