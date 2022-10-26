@@ -22,7 +22,7 @@ The command line help is as follows:
   --lowCpuMode       Maximize performance if using CPU encoding
   --hwAccel          Use hardware encoding if available
   --noCursor         Will not render cursor in recording
-  --pause            Wait for key-press before recording
+  --pause            Pause before recording until start command
   --output           The file name of the generated recording
 ```
 
@@ -37,6 +37,7 @@ Maximum 5 simultaneous audio devices.
 While the recorder is running, you can provide the following commands via stdin:
 
 - `q` or `Ctrl+C`: Stop recording and quit.
+- `start`: Used in conjunction with the --pause parameter.
 - `mute`: Mutes an audio device. Must provide the device type and index (order in which it was provided in command line arguments). 
   Examples:
   - Mute the first speaker device: `mute s 0`

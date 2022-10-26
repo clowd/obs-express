@@ -417,7 +417,7 @@ void run(vector<string> arguments)
         cout << "  --lowCpuMode       Maximize performance if using CPU encoding" << std::endl;
         cout << "  --hwAccel          Use hardware encoding if available" << std::endl;
         cout << "  --noCursor         Will not render cursor in recording" << std::endl;
-        cout << "  --pause            Wait for key-press before recording starts" << std::endl;
+        cout << "  --pause            Pause before recording until start command" << std::endl;
         cout << "  --output           The file name of the generated recording" << std::endl;
         return;
     }
