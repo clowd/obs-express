@@ -29,12 +29,15 @@ using namespace Gdiplus;
 using json = nlohmann::json;
 
 HANDLE startHandle;
+HANDLE cancelHandle;
 bool cancelRequested = false;
+obs_output_t* muxer;
 
 BOOL WINAPI ctrl_handler(DWORD fdwCtrlType)
 {
     cout << "Received exit signal." << std::endl;
     cancelRequested = true;
+    SetEvent(cancelHandle);
     SetEvent(startHandle);
     return TRUE; // indicate we have handled the signal and no further processing should happen
 }
@@ -342,6 +345,7 @@ unsigned int __stdcall read_input_proc(void* lpParam)
         if (str == "q" || str == "quit" || str == "exit") {
             cout << "Quit command received." << std::endl;
             cancelRequested = true;
+            SetEvent(cancelHandle);
             SetEvent(startHandle);
         }
 
@@ -384,6 +388,38 @@ unsigned int __stdcall read_input_proc(void* lpParam)
     }
 
     cout << "stdin read thread has exited." << std::endl;
+    return 0;
+}
+
+unsigned int __stdcall output_status_proc(void* lpParam)
+{
+    while (!cancelRequested) {
+        if (startTimeMs == 0) {
+            continue;
+        }
+
+        auto currentTimeMs = os_gettime_ns() / 1000000;
+
+        double percent = 0;
+        int totalDropped = obs_output_get_frames_dropped(muxer);
+        int totalFrames = obs_output_get_total_frames(muxer);
+        if (totalFrames == 0) { percent = 0.0; }
+        else { percent = (double)totalDropped / (double)totalFrames * 100.0; }
+
+        auto frameTime = (double)obs_get_average_frame_time_ns() / 1000000.0;
+
+        json status;
+        status["timeMs"] = currentTimeMs - startTimeMs;
+        status["dropped"] = totalDropped;
+        status["droppedPerc"] = percent;
+        status["fps"] = obs_get_active_fps();
+        status["frameTime"] = frameTime;
+        status["cpu"] = getCPU_Percentage();
+        status["type"] = "status";
+        cout << status << std::endl;
+
+        Sleep(1000);
+    }
     return 0;
 }
 
@@ -611,7 +647,7 @@ void run(vector<string> arguments)
     // create output muxer
     auto muxerOptions = obs_data_create();
     obs_data_set_string(muxerOptions, "path", outputFile.c_str());
-    auto muxer = obs_output_create("ffmpeg_muxer", "main_output_muxer", muxerOptions, nullptr);
+    muxer = obs_output_create("ffmpeg_muxer", "main_output_muxer", muxerOptions, nullptr);
 
     obs_encoder_set_video(encVideo, obs_get_video());
     obs_encoder_set_audio(encAudio, obs_get_audio());
@@ -647,15 +683,17 @@ void run(vector<string> arguments)
     signal_handler_connect(signals, "start", signal_started_recording, nullptr);
     signal_handler_connect(signals, "stop", signal_stopped_recording, nullptr);
 
-    // catch ctrl events and shut down obs gracefully
-    SetConsoleCtrlHandler(ctrl_handler, TRUE);
-
     json rec_init;
     rec_init["type"] = "initialized";
     cout << rec_init << std::endl;
 
-    // read std-input for commands
     startHandle = CreateEvent(NULL, TRUE, FALSE, NULL);
+    cancelHandle = CreateEvent(NULL, TRUE, FALSE, NULL);
+
+    // catch ctrl events and shut down obs gracefully
+    SetConsoleCtrlHandler(ctrl_handler, TRUE);
+
+    // read std-input for commands
     (HANDLE)_beginthreadex(NULL, 0, read_input_proc, nullptr, 0, nullptr);
 
     if (pause) {
@@ -672,35 +710,12 @@ void run(vector<string> arguments)
 
     obs_output_start(muxer);
 
-    while (!cancelRequested) {
-        Sleep(1000);
+    // begin writing status to std out
+    (HANDLE)_beginthreadex(NULL, 0, output_status_proc, nullptr, 0, nullptr);
 
-        if (startTimeMs == 0) {
-            continue;
-        }
+    WaitForSingleObject(cancelHandle, INFINITE);
 
-        auto currentTimeMs = os_gettime_ns() / 1000000;
-
-        double percent = 0;
-        int totalDropped = obs_output_get_frames_dropped(muxer);
-        int totalFrames = obs_output_get_total_frames(muxer);
-        if (totalFrames == 0) { percent = 0.0; }
-        else { percent = (double)totalDropped / (double)totalFrames * 100.0; }
-
-        auto frameTime = (double)obs_get_average_frame_time_ns() / 1000000.0;
-
-        json status;
-        status["timeMs"] = currentTimeMs - startTimeMs;
-        status["dropped"] = totalDropped;
-        status["droppedPerc"] = percent;
-        status["fps"] = obs_get_active_fps();
-        status["frameTime"] = frameTime;
-        status["cpu"] = getCPU_Percentage();
-        status["type"] = "status";
-        cout << status << std::endl;
-    }
-
-    if (trackerEnabled) obs_remove_tick_callback(frame_tick, NULL);
+    //if (trackerEnabled) obs_remove_tick_callback(frame_tick, NULL);
 
     cout << "Cancel requested. Starting Shutdown" << std::endl;
 
