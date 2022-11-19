@@ -52,10 +52,11 @@ Requirements:
  - Desktop development with C++ (Workload)
  - Windows SDK 10.0.20348
 
-To start, you need to checkout the repository recursively (to download all submodules). Then you can run the `configure-obs.cmd` script to build OBS. 
+The following will perform a full build and output `obs-express.zip` to the project directory.
 ```cmd
-git clone --recursive https://github.com/clowd/obs-express-cpp.git
+git clone --recursive https://github.com/clowd/obs-express.git
 configure-obs.cmd
+pack-release.cmd
 ```
 
 Now open `ObsExpressCpp.sln` in Visual Studio and you should be able to F5 and run/debug the program.
