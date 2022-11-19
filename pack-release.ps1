@@ -1,9 +1,18 @@
 # search for msbuild, the loaction of vswhere is guarenteed to be consistent
 $MSBuildPath = (&"${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -prerelease -products * -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe) | Out-String
 $SevenZipPath = Resolve-Path -Path "7za.exe"
+$RcEditPath = Resolve-Path -Path "rcedit.exe"
 
 Set-Alias msbuild $MSBuildPath.Trim()
-Set-Alias seven  $SevenZipPath
+Set-Alias seven $SevenZipPath
+Set-Alias rce $RcEditPath
+
+$verHeader = Get-Content -Path .\version.h
+$verStart = $verHeader.IndexOf('"') + 1
+$verEnd = $verHeader.IndexOf('"', $verStart)
+$version = $verHeader.Substring($verStart, $verEnd - $verStart)
+
+Write-Host "Creating release for obs-express v$version"
 
 msbuild ObsExpressCpp.sln -p:Configuration=Release -p:Platform=x64
 
@@ -19,6 +28,13 @@ foreach($file in $localeFiles)
     }
 }
 
+rce "$BinDir/obs-express.exe" `
+--set-file-version $version `
+--set-product-version $version `
+--set-version-string "ProductName" "obs-express" `
+--set-version-string "CompanyName" "Caelan Sayler" `
+--set-version-string "LegalCopyright" "Copyright 2022 Caelan Sayler" `
+--set-version-string "FileDescription" "obs-express command line screen recording utility"
 
 # create final zip
 Remove-Item -Path "$BinDir/*.pdb" -ErrorAction Ignore

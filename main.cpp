@@ -10,6 +10,7 @@
 #include "shellscalingapi.h"
 #include "process.h"
 
+#include "version.h"
 #include "argh.h"
 #include "getscreens.h"
 #include "json.hpp"
@@ -21,8 +22,6 @@
 #pragma comment(lib, "shcore.lib")
 #pragma comment(lib, "gdiplus.lib")
 #pragma comment(lib, "obs.lib")
-
-#define OBS_EXPRESS_VERSION "0.0.9"
 
 using namespace std;
 using namespace Gdiplus;
