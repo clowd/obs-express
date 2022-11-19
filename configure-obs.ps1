@@ -49,9 +49,17 @@ $CmakeCommand = @(
     "-DCEF_ROOT_DIR:PATH=`"${CefDirectory}`"",
     "-DVLC_PATH:PATH=`"${MyVlcDirectory}`"",
     "-DCMAKE_INSTALL_PREFIX=`"${BuildDirectoryActual}/install`"",
-    "-DVIRTUALCAM_GUID=`"${Env:VIRTUALCAM-GUID}`"",
     "-DCOPIED_DEPENDENCIES=OFF",
     "-DCOPY_DEPENDENCIES=ON",
+
+    "-DENABLE_AJA=OFF",
+    "-DENABLE_UI=OFF",
+    "-DENABLE_SCRIPTING=OFF",
+    "-DENABLE_DECKLINK=OFF",
+    "-DENABLE_VIRTUALCAM=OFF",
+    "-DENABLE_BROWSER=OFF",
+    "-DENABLE_VLC=OFF",
+    "-DENABLE_VST=OFF"
 
     # "-DENABLE_VLC=ON",
     # "-DENABLE_BROWSER=ON",
@@ -66,16 +74,8 @@ $CmakeCommand = @(
     # "-DBUILD_FOR_DISTRIBUTION=`"$(if (Test-Path Env:BUILD_FOR_DISTRIBUTION) { "ON" } else { "OFF" })`"",
     # "$(if (Test-Path Env:CI) { "-DOBS_BUILD_NUMBER=${Env:GITHUB_RUN_ID}" })",
     # "$(if (Test-Path Variable:$Quiet) { "-Wno-deprecated -Wno-dev --log-level=ERROR" })",
-
-    "-DOBS_VERSION_OVERRIDE=28.0.1-express"
-    "-DENABLE_AJA=OFF",
-    "-DENABLE_UI=OFF",
-    "-DENABLE_SCRIPTING=OFF",
-    "-DENABLE_DECKLINK=OFF",
-    "-DENABLE_VIRTUALCAM=OFF",
-    "-DENABLE_BROWSER=OFF",
-    "-DENABLE_VLC=OFF",
-    "-DENABLE_VST=OFF"
+    # "-DVIRTUALCAM_GUID=`"${Env:VIRTUALCAM-GUID}`"",
+    # "-DOBS_VERSION_OVERRIDE=28.0.1-express"
 )
 
 Invoke-External cmake -S ${CheckoutDir} -B "${BuildDirectoryActual}" @CmakeCommand

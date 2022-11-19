@@ -395,9 +395,9 @@ void run(vector<string> arguments)
     cmdl.parse(arguments);
 
     cout << std::endl;
-    cout << "obs-express v" << OBS_EXPRESS_VERSION << ", a light weight command line screen recorder." << std::endl;
-    cout << "bundled with a fork of obs-studio v" << obs_get_version_string() << std::endl;
-    cout << "built for the Clowd screen capture utility (https://github.com/clowd/Clowd)" << std::endl;
+    cout << "obs-express v" << OBS_EXPRESS_VERSION << ", a command line screen recording utility" << std::endl;
+    cout << "  bundled with obs-studio v" << obs_get_version_string() << std::endl;
+    cout << "  created for Clowd (https://github.com/clowd/Clowd)" << std::endl;
     cout << std::endl;
 
     bool help = cmdl[{ "h", "help" }];
