@@ -426,7 +426,7 @@ void run(vector<string> arguments)
 {
     // handle command line arguments
     argh::parser cmdl;
-    cmdl.add_params({ "adapter", "captureRegion", "speakers", "microphones", "fps", "crf", "maxOutputWidth", "maxOutputHeight", "output", "trackerColor" });
+    cmdl.add_params({ "adapter", "region", "speaker", "microphone", "fps", "crf", "maxWidth", "maxHeight", "output", "trackerColor" });
     cmdl.parse(arguments);
 
     cout << std::endl;
@@ -437,28 +437,30 @@ void run(vector<string> arguments)
 
     bool help = cmdl[{ "h", "help" }];
     if (help) {
-        cout << "Options: " << std::endl;
-        cout << "  --help             Show this help" << std::endl;
-        cout << "  --adapter          The numerical index of the graphics device to use" << std::endl;
-        cout << "  --captureRegion    The region of the desktop to record (eg. 'x,y,w,h') " << std::endl;
-        cout << "  --speakers         Output device ID to record (can be multiple)" << std::endl;
-        cout << "  --microphones      Input device ID to record (can be multiple)" << std::endl;
-        cout << "  --fps              The target video framerate" << std::endl;
-        cout << "  --crf              The contant rate factor (0-51, lower is better) " << std::endl;
-        cout << "  --maxOutputWidth   Downscale to a maximum output width" << std::endl;
-        cout << "  --maxOutputHeight  Downscale to a maximum output height" << std::endl;
-        cout << "  --trackerEnabled   If the mouse click tracker should be rendered" << std::endl;
-        cout << "  --trackerColor     The color of the tracker (eg. 'r,g,b')" << std::endl;
-        cout << "  --lowCpuMode       Maximize performance if using CPU encoding" << std::endl;
-        cout << "  --hwAccel          Use hardware encoding if available" << std::endl;
-        cout << "  --noCursor         Will not render cursor in recording" << std::endl;
-        cout << "  --pause            Pause before recording until start command" << std::endl;
-        cout << "  --output           The file name of the generated recording" << std::endl;
+        cout << "Global: " << std::endl;
+        cout << "  --help                  Show this help text" << std::endl;
+        cout << std::endl << "Required: " << std::endl;
+        cout << "  --region {x,y,w,h}      The region of the desktop to capture" << std::endl;
+        cout << "  --output {filePath}     The file for the generated recording" << std::endl;
+        cout << std::endl << "Optional: " << std::endl;
+        cout << "  --adapter {int}         The index of the graphics device to use" << std::endl;
+        cout << "  --speaker {dev_id}      Output device ID to record (can be multiple)" << std::endl;
+        cout << "  --microphone {dev_id}   Input device ID to record (can be multiple)" << std::endl;
+        cout << "  --fps {int}             The target video framerate (default: 30)" << std::endl;
+        cout << "  --crf {int}             Quality from 0-51, lower is better. (default: 24) " << std::endl;
+        cout << "  --maxWidth {int}        Downscale output to a maximum width" << std::endl;
+        cout << "  --maxHeight {int}       Downscale output to a maximum height" << std::endl;
+        cout << "  --tracker               If the mouse click tracker should be rendered" << std::endl;
+        cout << "  --trackerColor {r,g,b}  The color of the tracker (default: 255,0,0)" << std::endl;
+        cout << "  --lowCpuMode            Maximize performance if using CPU encoding" << std::endl;
+        cout << "  --hwAccel               Use hardware encoding if available" << std::endl;
+        cout << "  --noCursor              Do not render mouse cursor in recording" << std::endl;
+        cout << "  --pause                 Pause before recording until start command" << std::endl;
         return;
     }
 
     bool pause = cmdl["pause"];
-    bool trackerEnabled = cmdl["trackerEnabled"];
+    bool trackerEnabled = cmdl["tracker"];
     bool lowCpuMode = cmdl["lowCpuMode"];
     bool hwAccel = cmdl["hwAccel"];
     bool noCursor = cmdl["noCursor"];
@@ -467,19 +469,19 @@ void run(vector<string> arguments)
     cmdl("adapter", 0) >> adapter;
     cmdl("fps", 30) >> fps;
     cmdl("crf", 24) >> crf;
-    cmdl("maxOutputWidth", 0) >> maxOutputWidth;
-    cmdl("maxOutputHeight", 0) >> maxOutputHeight;
+    cmdl("maxWidth", 0) >> maxOutputWidth;
+    cmdl("maxHeight", 0) >> maxOutputHeight;
 
-    auto speakers = cmdl.params("speakers");
-    auto microphones = cmdl.params("microphones");
+    auto speakers = cmdl.params("speaker");
+    auto microphones = cmdl.params("microphone");
 
     string tmpCaptureRegion, tmpTrackerColor, outputFile;
-    tmpCaptureRegion = cmdl("captureRegion").str();
+    tmpCaptureRegion = cmdl("region").str();
     tmpTrackerColor = cmdl("trackerColor", "255,0,0").str();
     outputFile = cmdl("output").str();
 
     if (tmpCaptureRegion.empty() || outputFile.empty())
-        throw std::exception("Required parameters: captureRegion, output");
+        throw std::exception("Required parameters: region, output");
 
     captureRegion = parse_rect(tmpCaptureRegion);
     Color trackerColor = parse_color(tmpTrackerColor);

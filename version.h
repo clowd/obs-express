@@ -1,1 +1,1 @@
-#define OBS_EXPRESS_VERSION "0.0.11"
+#define OBS_EXPRESS_VERSION "1.0.0"
