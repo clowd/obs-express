@@ -4,6 +4,7 @@
 #include <sstream>
 #include <iterator>
 #include <unordered_set>
+#include <regex>
 
 #include "windows.h"
 #include "gdiplus.h"
@@ -219,7 +220,6 @@ obs_source_t* mouseFilter = 0;
 obs_sceneitem_t* mouseSceneItem = 0;
 void update_tracker(uint32_t x, uint32_t y, float opacity, float scale)
 {
-
     if (mouseFilter == nullptr || mouseSceneItem == nullptr) {
         return;
     }
@@ -422,11 +422,16 @@ unsigned int __stdcall output_status_proc(void* lpParam)
     return 0;
 }
 
+void preview_callback(void* displayPtr, uint32_t cx, uint32_t cy)
+{
+    obs_render_main_texture();
+}
+
 void run(vector<string> arguments)
 {
     // handle command line arguments
     argh::parser cmdl;
-    cmdl.add_params({ "adapter", "region", "speaker", "microphone", "fps", "crf", "maxWidth", "maxHeight", "output", "trackerColor" });
+    cmdl.add_params({ "adapter", "region", "speaker", "microphone", "fps", "crf", "maxWidth", "maxHeight", "output", "trackerColor", "preview" });
     cmdl.parse(arguments);
 
     cout << std::endl;
@@ -456,6 +461,7 @@ void run(vector<string> arguments)
         cout << "  --hwAccel               Use hardware encoding if available" << std::endl;
         cout << "  --noCursor              Do not render mouse cursor in recording" << std::endl;
         cout << "  --pause                 Pause before recording until start command" << std::endl;
+        cout << "  --preview {hwnd}        Render a recording preview to window handle" << std::endl;
         return;
     }
 
@@ -472,6 +478,30 @@ void run(vector<string> arguments)
     cmdl("maxWidth", 0) >> maxOutputWidth;
     cmdl("maxHeight", 0) >> maxOutputHeight;
 
+    uint32_t previewWidth, previewHeight;
+    void* previewHwnd = 0;
+    std::string previewStr = cmdl("preview").str();
+    if (!previewStr.empty()) {
+        std::regex re_all_digits("^\\d+$");
+        std::regex re_hexidecimal("^0x[0-9a-zA-Z]+$");
+        if (std::regex_match(previewStr, re_hexidecimal)) {
+            previewHwnd = (void*)std::stoul(previewStr, nullptr, 16);
+        }
+        else if (std::regex_match(previewStr, re_all_digits)) {
+            previewHwnd = (void*)std::stoul(previewStr, nullptr, 10);
+        }
+        else {
+            throw std::invalid_argument("Unknown window handle format, must be decimal or hexidecimal: " + previewStr);
+        }
+
+        RECT r;
+        if (!GetWindowRect((HWND)previewHwnd, &r))
+            throw std::invalid_argument("Unable to retrieve details for window handle '" + previewStr + "'. Is it a real window? Does this process have permission to access it?");
+
+        previewWidth = r.right - r.left;
+        previewHeight = r.bottom - r.top;
+    }
+
     auto speakers = cmdl.params("speaker");
     auto microphones = cmdl.params("microphone");
 
@@ -481,7 +511,7 @@ void run(vector<string> arguments)
     outputFile = cmdl("output").str();
 
     if (tmpCaptureRegion.empty() || outputFile.empty())
-        throw std::exception("Required parameters: region, output");
+        throw std::invalid_argument("Required parameters: region, output");
 
     captureRegion = parse_rect(tmpCaptureRegion);
     Color trackerColor = parse_color(tmpTrackerColor);
@@ -696,6 +726,20 @@ void run(vector<string> arguments)
 
     // read std-input for commands
     (HANDLE)_beginthreadex(NULL, 0, read_input_proc, nullptr, 0, nullptr);
+
+    // start preview rendering
+    if (previewHwnd) {
+        gs_init_data display_init{};
+        display_init.adapter = adapter;
+        display_init.cx = captureRegion.Width;
+        display_init.cy = captureRegion.Height;
+        display_init.format = GS_BGRA;
+        display_init.zsformat = GS_ZS_NONE;
+        display_init.num_backbuffers = 1;
+        display_init.window.hwnd = previewHwnd;
+        auto hdisplay = obs_display_create(&display_init, 0x0);
+        obs_display_add_draw_callback(hdisplay, preview_callback, 0);
+    }
 
     if (pause) {
         cout << ">>>> Type 'start' + Enter to start recording." << std::endl;
