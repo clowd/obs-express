@@ -33,7 +33,7 @@ rce "$BinDir/obs-express.exe" `
 --set-product-version $version `
 --set-version-string "ProductName" "obs-express" `
 --set-version-string "CompanyName" "Caelan Sayler" `
---set-version-string "LegalCopyright" "Copyright 2022 Caelan Sayler" `
+--set-version-string "LegalCopyright" "Copyright 2022-2023 Caelan Sayler" `
 --set-version-string "FileDescription" "obs-express command line screen recording utility"
 
 # create final zip
