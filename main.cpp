@@ -274,6 +274,15 @@ void frame_tick(void* priv, float seconds)
     }
 }
 
+void handle_signal(void* data, calldata_t* cd)
+{
+    auto signal_name = (char*)data;
+    json rec_start;
+    rec_start["signal"] = std::string(signal_name);
+    rec_start["type"] = "signal";
+    cout << rec_start << std::endl;
+}
+
 uint64_t startTimeMs = 0;
 void signal_started_recording(void* data, calldata_t* cd)
 {
@@ -339,10 +348,14 @@ unsigned int __stdcall read_input_proc(void* lpParam)
     while (!cancelRequested) {
         std::string str;
         std::getline(std::cin, str);
+
+        // tolower the command
+        std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::tolower(c); });
+
         auto words = split_space(str);
 
-        if (str == "q" || str == "quit" || str == "exit") {
-            cout << "Quit command received." << std::endl;
+        if (str == "q" || str == "quit" || str == "exit" || str == "stop") {
+            cout << "Quit/stop command received." << std::endl;
             cancelRequested = true;
             SetEvent(cancelHandle);
             SetEvent(startHandle);
@@ -350,7 +363,18 @@ unsigned int __stdcall read_input_proc(void* lpParam)
 
         else if (str == "start") {
             cout << "Start command received." << std::endl;
-            SetEvent(startHandle);
+            if (obs_output_paused(muxer)) {
+                obs_output_pause(muxer, false);
+            }
+            else {
+                // first start
+                SetEvent(startHandle);
+            }
+        }
+
+        else if (str == "pause") {
+            cout << "Pause command received." << std::endl;
+            obs_output_pause(muxer, true);
         }
 
         else if (words.size() == 3 && (words[0] == "mute" || words[0] == "unmute")) {
@@ -393,7 +417,9 @@ unsigned int __stdcall read_input_proc(void* lpParam)
 unsigned int __stdcall output_status_proc(void* lpParam)
 {
     while (!cancelRequested) {
-        if (startTimeMs == 0) {
+        Sleep(1000);
+
+        if (startTimeMs == 0 || obs_output_paused(muxer)) {
             continue;
         }
 
@@ -416,8 +442,6 @@ unsigned int __stdcall output_status_proc(void* lpParam)
         status["cpu"] = getCPU_Percentage();
         status["type"] = "status";
         cout << status << std::endl;
-
-        Sleep(1000);
     }
     return 0;
 }
@@ -713,10 +737,12 @@ void run(vector<string> arguments)
     signal_handler_t* signals = obs_output_get_signal_handler(muxer);
     signal_handler_connect(signals, "start", signal_started_recording, nullptr);
     signal_handler_connect(signals, "stop", signal_stopped_recording, nullptr);
-
-    json rec_init;
-    rec_init["type"] = "initialized";
-    cout << rec_init << std::endl;
+    signal_handler_connect(signals, "stop", handle_signal, (void*)"stop");
+    signal_handler_connect(signals, "start", handle_signal, (void*)"start");
+    signal_handler_connect(signals, "pause", handle_signal, (void*)"pause");
+    signal_handler_connect(signals, "unpause", handle_signal, (void*)"unpause");
+    signal_handler_connect(signals, "starting", handle_signal, (void*)"starting");
+    signal_handler_connect(signals, "stopping", handle_signal, (void*)"stopping");
 
     startHandle = CreateEvent(NULL, TRUE, FALSE, NULL);
     cancelHandle = CreateEvent(NULL, TRUE, FALSE, NULL);
@@ -740,6 +766,10 @@ void run(vector<string> arguments)
         auto hdisplay = obs_display_create(&display_init, 0x0);
         obs_display_add_draw_callback(hdisplay, preview_callback, 0);
     }
+
+    json rec_init;
+    rec_init["type"] = "initialized";
+    cout << rec_init << std::endl;
 
     if (pause) {
         cout << ">>>> Type 'start' + Enter to start recording." << std::endl;
