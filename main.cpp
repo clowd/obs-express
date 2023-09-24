@@ -753,7 +753,8 @@ void run(vector<string> arguments)
 
     cout << "Requesting output start" << std::endl;
 
-    obs_output_start(muxer);
+    if (!obs_output_start(muxer))
+        throw std::runtime_error(obs_output_get_last_error(muxer));
 
     // begin writing status to std out
     (HANDLE)_beginthreadex(NULL, 0, output_status_proc, nullptr, 0, nullptr);
