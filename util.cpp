@@ -10,6 +10,7 @@ using namespace std;
 using namespace Gdiplus;
 
 os_cpu_usage_info_t* cpuUsageInfo = nullptr;
+
 double getCPU_Percentage()
 {
     double cpuPercentage = os_cpu_usage_info_query(cpuUsageInfo);
@@ -26,10 +27,15 @@ uint64_t util_obs_get_time_ms()
 
 double util_obs_get_cpu_utilisation()
 {
-    if (!cpuUsageInfo)
-        cpuUsageInfo = os_cpu_usage_info_start();
-
     return getCPU_Percentage();
+}
+
+void util_obs_cpu_usage_info_start()
+{
+    if (cpuUsageInfo)
+        os_cpu_usage_info_destroy(cpuUsageInfo);
+
+    cpuUsageInfo = os_cpu_usage_info_start();
 }
 
 vector<string> util_string_split(const string& input, char delimiter)

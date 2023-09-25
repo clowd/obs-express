@@ -28,24 +28,27 @@ using namespace std;
 using namespace Gdiplus;
 using json = nlohmann::json;
 
+// general state
 HANDLE startHandle;
 HANDLE cancelHandle;
 bool cancelRequested = false;
 obs_output_t* muxer;
-
-BOOL WINAPI ctrl_handler(DWORD fdwCtrlType)
-{
-    cout << "Received exit signal." << std::endl;
-    cancelRequested = true;
-    SetEvent(cancelHandle);
-    SetEvent(startHandle);
-    return TRUE; // indicate we have handled the signal and no further processing should happen
-}
-
+uint64_t startTimeMs = 0;
 Rect captureRegion;
+
+// for audio device muting/unmuting
+vector<obs_source_t*> spkDevices{};
+vector<obs_source_t*> micDevices{};
+
+// for mouse animation
 obs_source_t* mouseFilter = 0;
 obs_sceneitem_t* mouseSceneItem = 0;
-void update_tracker(uint32_t x, uint32_t y, float opacity, float scale)
+uint64_t lastMouseClick;
+mouse_info lastMouseClickPosition;
+bool mouseVisible;
+#define ANIMATION_DURATION ((double)400) // ms * ns
+
+void update_mouse_tracker_state(uint32_t x, uint32_t y, float opacity, float scale)
 {
     if (mouseFilter == nullptr || mouseSceneItem == nullptr) {
         return;
@@ -62,11 +65,7 @@ void update_tracker(uint32_t x, uint32_t y, float opacity, float scale)
     obs_data_release(opt_opacity);
 };
 
-uint64_t lastMouseClick;
-mouse_info lastMouseClickPosition;
-bool mouseVisible;
-#define ANIMATION_DURATION ((double)400) // ms * ns
-void frame_tick(void* priv, float seconds)
+void tick_obs_frame_processing(void* priv, float seconds)
 {
     auto time = util_obs_get_time_ms();
     auto mouseData = get_mouse_info();
@@ -91,27 +90,40 @@ void frame_tick(void* priv, float seconds)
         auto x = lastMouseClickPosition.x - radius;
         auto y = lastMouseClickPosition.y - radius;
 
-        update_tracker(x, y, opacity, scale);
+        update_mouse_tracker_state(x, y, opacity, scale);
         //cout << "mouse visible: " << opacity << std::endl;
     }
     else if (mouseVisible) {
         mouseVisible = false;
-        update_tracker(0, 0, 0, 1);
+        update_mouse_tracker_state(0, 0, 0, 1);
         //cout << "mouse removed..." << std::endl;
     }
 }
 
-void handle_signal(void* data, calldata_t* cd)
+void tick_draw_preview_callback(void* displayPtr, uint32_t cx, uint32_t cy)
 {
-    auto signal_name = (char*)data;
+    obs_render_main_texture();
+}
+
+BOOL WINAPI handle_console_ctrl_event(DWORD fdwCtrlType)
+{
+    cout << "Received exit signal." << std::endl;
+    cancelRequested = true;
+    SetEvent(cancelHandle);
+    SetEvent(startHandle);
+    return TRUE; // indicate we have handled the signal and no further processing should happen
+}
+
+void handle_signal_all(void* data, calldata_t* cd)
+{
+    auto signal_name = std::string((char*)data);
     json rec_start;
-    rec_start["signal"] = std::string(signal_name);
+    rec_start["signal"] = signal_name;
     rec_start["type"] = "signal";
     cout << rec_start << std::endl;
 }
 
-uint64_t startTimeMs = 0;
-void signal_started_recording(void* data, calldata_t* cd)
+void handle_signal_started_recording(void* data, calldata_t* cd)
 {
     startTimeMs = util_obs_get_time_ms();
     json rec_start;
@@ -119,7 +131,7 @@ void signal_started_recording(void* data, calldata_t* cd)
     cout << rec_start << std::endl;
 }
 
-void signal_stopped_recording(void* data, calldata_t* cd)
+void handle_signal_stopped_recording(void* data, calldata_t* cd)
 {
     obs_output_t* output = (obs_output_t*)calldata_ptr(cd, "output");
     int code = calldata_int(cd, "code");
@@ -142,10 +154,7 @@ void signal_stopped_recording(void* data, calldata_t* cd)
     ExitProcess(code);
 }
 
-vector<obs_source_t*> spkDevices{};
-vector<obs_source_t*> micDevices{};
-
-unsigned int __stdcall read_input_proc(void* lpParam)
+unsigned int __stdcall thread_read_input(void* lpParam)
 {
     while (!cancelRequested) {
         std::string str;
@@ -216,7 +225,7 @@ unsigned int __stdcall read_input_proc(void* lpParam)
     return 0;
 }
 
-unsigned int __stdcall output_status_proc(void* lpParam)
+unsigned int __stdcall thread_output_realtime_status(void* lpParam)
 {
     while (!cancelRequested) {
         Sleep(1000);
@@ -246,11 +255,6 @@ unsigned int __stdcall output_status_proc(void* lpParam)
         cout << status << std::endl;
     }
     return 0;
-}
-
-void preview_callback(void* displayPtr, uint32_t cx, uint32_t cy)
-{
-    obs_render_main_texture();
 }
 
 void run(vector<string> arguments)
@@ -366,6 +370,8 @@ void run(vector<string> arguments)
     // do obs setup.
     if (!obs_startup("en-US", nullptr, nullptr))
         throw std::exception("Unable to start OBS");
+
+    util_obs_cpu_usage_info_start();
 
     obs_video_info vvi{};
     vvi.adapter = adapter;
@@ -492,28 +498,28 @@ void run(vector<string> arguments)
         mouseFilter = filter;
         mouseSceneItem = sceneItem;
 
-        obs_add_tick_callback(frame_tick, NULL);
+        obs_add_tick_callback(tick_obs_frame_processing, NULL);
     }
 
     // obs signals
     signal_handler_t* signals = obs_output_get_signal_handler(muxer);
-    signal_handler_connect(signals, "start", signal_started_recording, nullptr);
-    signal_handler_connect(signals, "stop", signal_stopped_recording, nullptr);
-    signal_handler_connect(signals, "stop", handle_signal, (void*)"stop");
-    signal_handler_connect(signals, "start", handle_signal, (void*)"start");
-    signal_handler_connect(signals, "pause", handle_signal, (void*)"pause");
-    signal_handler_connect(signals, "unpause", handle_signal, (void*)"unpause");
-    signal_handler_connect(signals, "starting", handle_signal, (void*)"starting");
-    signal_handler_connect(signals, "stopping", handle_signal, (void*)"stopping");
+    signal_handler_connect(signals, "start", handle_signal_started_recording, nullptr);
+    signal_handler_connect(signals, "stop", handle_signal_stopped_recording, nullptr);
+    signal_handler_connect(signals, "stop", handle_signal_all, (void*)"stop");
+    signal_handler_connect(signals, "start", handle_signal_all, (void*)"start");
+    signal_handler_connect(signals, "pause", handle_signal_all, (void*)"pause");
+    signal_handler_connect(signals, "unpause", handle_signal_all, (void*)"unpause");
+    signal_handler_connect(signals, "starting", handle_signal_all, (void*)"starting");
+    signal_handler_connect(signals, "stopping", handle_signal_all, (void*)"stopping");
 
     startHandle = CreateEvent(NULL, TRUE, FALSE, NULL);
     cancelHandle = CreateEvent(NULL, TRUE, FALSE, NULL);
 
     // catch ctrl events and shut down obs gracefully
-    SetConsoleCtrlHandler(ctrl_handler, TRUE);
+    SetConsoleCtrlHandler(handle_console_ctrl_event, TRUE);
 
     // read std-input for commands
-    (HANDLE)_beginthreadex(NULL, 0, read_input_proc, nullptr, 0, nullptr);
+    _beginthreadex(NULL, 0, thread_read_input, nullptr, 0, nullptr);
 
     // start preview rendering
     if (previewHwnd) {
@@ -526,7 +532,7 @@ void run(vector<string> arguments)
         display_init.num_backbuffers = 1;
         display_init.window.hwnd = previewHwnd;
         auto hdisplay = obs_display_create(&display_init, 0x0);
-        obs_display_add_draw_callback(hdisplay, preview_callback, 0);
+        obs_display_add_draw_callback(hdisplay, tick_draw_preview_callback, 0);
     }
 
     json rec_init;
@@ -549,7 +555,7 @@ void run(vector<string> arguments)
         throw std::runtime_error(obs_output_get_last_error(muxer));
 
     // begin writing status to std out
-    (HANDLE)_beginthreadex(NULL, 0, output_status_proc, nullptr, 0, nullptr);
+    _beginthreadex(NULL, 0, thread_output_realtime_status, nullptr, 0, nullptr);
 
     WaitForSingleObject(cancelHandle, INFINITE);
 
