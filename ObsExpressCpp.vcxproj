@@ -176,12 +176,14 @@
     <ClCompile Include="encoder.cpp" />
     <ClCompile Include="getscreens.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="argh.h" />
     <ClInclude Include="encoder.h" />
     <ClInclude Include="getscreens.h" />
     <ClInclude Include="json.hpp" />
+    <ClInclude Include="util.h" />
     <ClInclude Include="version.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

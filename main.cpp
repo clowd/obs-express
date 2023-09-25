@@ -1,7 +1,6 @@
 #include <string>
 #include <iostream>
 #include <vector>
-#include <sstream>
 #include <iterator>
 #include <unordered_set>
 #include <regex>
@@ -14,10 +13,10 @@
 #include "version.h"
 #include "argh.h"
 #include "getscreens.h"
+#include "util.h"
 #include "encoder.h"
 #include "json.hpp"
 #include "obs-studio/libobs/obs.h"
-#include "obs-studio/libobs/util/platform.h"
 
 #pragma comment(lib, "user32.lib") 
 #pragma comment(lib, "dwmapi.lib")
@@ -41,73 +40,6 @@ BOOL WINAPI ctrl_handler(DWORD fdwCtrlType)
     SetEvent(cancelHandle);
     SetEvent(startHandle);
     return TRUE; // indicate we have handled the signal and no further processing should happen
-}
-
-os_cpu_usage_info_t* cpuUsageInfo = nullptr;
-double getCPU_Percentage()
-{
-    double cpuPercentage = os_cpu_usage_info_query(cpuUsageInfo);
-    cpuPercentage *= 10;
-    cpuPercentage = trunc(cpuPercentage);
-    cpuPercentage /= 10;
-    return cpuPercentage;
-}
-
-vector<string> split_comma(const string& input)
-{
-    stringstream ss(input);
-    vector<string> result;
-
-    while (ss.good()) {
-        string substr;
-        getline(ss, substr, ',');
-        result.push_back(substr);
-    }
-
-    return result;
-}
-
-vector<string> split_space(const string& input)
-{
-    stringstream ss(input);
-    vector<string> result;
-
-    while (ss.good()) {
-        string substr;
-        getline(ss, substr, ' ');
-        result.push_back(substr);
-    }
-
-    return result;
-}
-
-Rect parse_rect(const string& input)
-{
-    auto parts = split_comma(input);
-    if (parts.size() != 4) {
-        string message = "Not a valid rectangle: " + input;
-        throw std::exception(message.c_str());
-    }
-
-    Rect r{};
-    r.X = stoi(parts[0]);
-    r.Y = stoi(parts[1]);
-    r.Width = stoi(parts[2]);
-    r.Height = stoi(parts[3]);
-
-    return r;
-}
-
-Color parse_color(const string& input)
-{
-    auto parts = split_comma(input);
-    if (parts.size() != 3) {
-        string message = "Not a valid color: " + input;
-        throw std::exception(message.c_str());
-    }
-
-    Color r{ (BYTE)stoi(parts[0]), (BYTE)stoi(parts[1]), (BYTE)stoi(parts[2]) };
-    return r;
 }
 
 Rect captureRegion;
@@ -136,7 +68,7 @@ bool mouseVisible;
 #define ANIMATION_DURATION ((double)400) // ms * ns
 void frame_tick(void* priv, float seconds)
 {
-    auto time = os_gettime_ns() / 1000000;
+    auto time = util_obs_get_time_ms();
     auto mouseData = get_mouse_info();
     if (mouseData.pressed) {
         lastMouseClickPosition = mouseData;
@@ -181,35 +113,10 @@ void handle_signal(void* data, calldata_t* cd)
 uint64_t startTimeMs = 0;
 void signal_started_recording(void* data, calldata_t* cd)
 {
-    cpuUsageInfo = os_cpu_usage_info_start();
-    startTimeMs = os_gettime_ns() / 1000000;
+    startTimeMs = util_obs_get_time_ms();
     json rec_start;
     rec_start["type"] = "started_recording";
     cout << rec_start << std::endl;
-}
-
-string get_output_error_string(int code)
-{
-    switch (code) {
-    case OBS_OUTPUT_SUCCESS:
-        return "Successfully stopped";
-    case OBS_OUTPUT_BAD_PATH:
-        return "The specified path was invalid";
-    case OBS_OUTPUT_CONNECT_FAILED:
-        return "Failed to connect to a server";
-    case OBS_OUTPUT_INVALID_STREAM:
-        return "Invalid stream path";
-    case OBS_OUTPUT_ERROR:
-        return "Generic error";
-    case OBS_OUTPUT_DISCONNECTED:
-        return "Unexpectedly disconnected";
-    case OBS_OUTPUT_UNSUPPORTED:
-        return "The settings, video/audio format, or codecs are unsupported by this output";
-    case OBS_OUTPUT_NO_SPACE:
-        return "Ran out of disk space";
-    case OBS_OUTPUT_ENCODE_ERROR:
-        return "Encoder error";
-    }
 }
 
 void signal_stopped_recording(void* data, calldata_t* cd)
@@ -221,7 +128,7 @@ void signal_stopped_recording(void* data, calldata_t* cd)
     json rec_stop;
     rec_stop["type"] = "stopped_recording";
     rec_stop["code"] = code;
-    rec_stop["message"] = get_output_error_string(code);
+    rec_stop["message"] = get_obs_output_errorcode_string(code);
     if (output_error != nullptr) {
         rec_stop["error"] = output_error;
     }
@@ -247,7 +154,7 @@ unsigned int __stdcall read_input_proc(void* lpParam)
         // tolower the command
         std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::tolower(c); });
 
-        auto words = split_space(str);
+        auto words = util_string_split(str, ' ');
 
         if (str == "q" || str == "quit" || str == "exit" || str == "stop") {
             cout << "Quit/stop command received." << std::endl;
@@ -318,7 +225,7 @@ unsigned int __stdcall output_status_proc(void* lpParam)
             continue;
         }
 
-        auto currentTimeMs = os_gettime_ns() / 1000000;
+        auto currentTimeMs = util_obs_get_time_ms();
 
         double percent = 0;
         int totalDropped = obs_output_get_frames_dropped(muxer);
@@ -334,7 +241,7 @@ unsigned int __stdcall output_status_proc(void* lpParam)
         status["droppedPerc"] = percent;
         status["fps"] = obs_get_active_fps();
         status["frameTime"] = frameTime;
-        status["cpu"] = getCPU_Percentage();
+        status["cpu"] = util_obs_get_cpu_utilisation();
         status["type"] = "status";
         cout << status << std::endl;
     }
@@ -432,8 +339,8 @@ void run(vector<string> arguments)
     if (tmpCaptureRegion.empty() || outputFile.empty())
         throw std::invalid_argument("Required parameters: region, output");
 
-    captureRegion = parse_rect(tmpCaptureRegion);
-    Color trackerColor = parse_color(tmpTrackerColor);
+    captureRegion = util_parse_rect(tmpCaptureRegion);
+    Color trackerColor = util_parse_color(tmpTrackerColor);
 
     // calculate ideal canvas size
     SizeF outputSize{ (float)captureRegion.Width, (float)captureRegion.Height };
@@ -659,15 +566,6 @@ void run(vector<string> arguments)
     ExitProcess(-1);
 }
 
-std::string utf8_encode(const std::wstring& wstr)
-{
-    if (wstr.empty()) return std::string();
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
-    std::string strTo(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
-    return strTo;
-}
-
 int wmain(int argc, wchar_t* argv[], wchar_t* envp[])
 {
     try {
@@ -677,7 +575,7 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[])
         // convert wchar arguments to utf8
         vector<string> utf8argv{};
         for (int i = 0; i < argc; i++) {
-            utf8argv.emplace_back(utf8_encode(argv[i]));
+            utf8argv.emplace_back(util_string_utf8_encode(argv[i]));
         }
 
         run(utf8argv);
