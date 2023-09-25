@@ -57,7 +57,7 @@ Rect util_parse_rect(const string& input)
     auto parts = util_string_split(input, ',');
     if (parts.size() != 4) {
         string message = "Not a valid rectangle: " + input;
-        throw std::exception(message.c_str());
+        throw std::invalid_argument(message.c_str());
     }
 
     Rect r{};
@@ -74,7 +74,7 @@ Color util_parse_color(const string& input)
     auto parts = util_string_split(input, ',');
     if (parts.size() != 3) {
         string message = "Not a valid color: " + input;
-        throw std::exception(message.c_str());
+        throw std::invalid_argument(message.c_str());
     }
 
     Color r{ (BYTE)stoi(parts[0]), (BYTE)stoi(parts[1]), (BYTE)stoi(parts[2]) };

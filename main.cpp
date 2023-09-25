@@ -261,7 +261,8 @@ void run(vector<string> arguments)
 {
     // handle command line arguments
     argh::parser cmdl;
-    cmdl.add_params({ "adapter", "region", "speaker", "microphone", "fps", "crf", "maxWidth", "maxHeight", "output", "trackerColor", "preview" });
+    cmdl.add_params({ "adapter", "region", "speaker", "microphone", "fps", "crf", "maxWidth", "maxHeight",
+        "output", "trackerColor", "preview", "monitor" });
     cmdl.parse(arguments);
 
     cout << std::endl;
@@ -275,8 +276,10 @@ void run(vector<string> arguments)
         cout << "Global: " << std::endl;
         cout << "  --help                  Show this help text" << std::endl;
         cout << std::endl << "Required: " << std::endl;
-        cout << "  --region {x,y,w,h}      The region of the desktop to capture" << std::endl;
         cout << "  --output {filePath}     The file for the generated recording" << std::endl;
+        cout << std::endl << "One of: " << std::endl;
+        cout << "  --region {x,y,w,h}      A capture region to spanning multiple monitors" << std::endl;
+        cout << "  --monitor {szDevice}    Only capture the specified monitor" << std::endl;
         cout << std::endl << "Optional: " << std::endl;
         cout << "  --adapter {int}         The index of the graphics device to use" << std::endl;
         cout << "  --speaker {dev_id}      Output device ID to record (can be multiple)" << std::endl;
@@ -335,18 +338,47 @@ void run(vector<string> arguments)
     auto speakers = cmdl.params("speaker");
     auto microphones = cmdl.params("microphone");
 
-    string tmpCaptureRegion, tmpTrackerColor, outputFile;
+    string tmpCaptureRegion, tmpTrackerColor, outputFile, captureMonitor;
     tmpCaptureRegion = cmdl("region").str();
+    captureMonitor = cmdl("monitor").str();
     tmpTrackerColor = cmdl("trackerColor", "255,0,0").str();
     outputFile = cmdl("output").str();
 
-    if (tmpCaptureRegion.empty() || outputFile.empty())
-        throw std::invalid_argument("Required parameters: region, output");
+    if (tmpCaptureRegion.empty() == captureMonitor.empty())
+        throw std::invalid_argument("Must specify one of parameters: [--region, --monitor] but not both.");
 
-    captureRegion = util_parse_rect(tmpCaptureRegion);
+    if (outputFile.empty())
+        throw std::invalid_argument("Missing required parameter: --output");
+
+    auto displays = get_screen_info();
     Color trackerColor = util_parse_color(tmpTrackerColor);
 
-    // calculate ideal canvas size
+    if (!captureMonitor.empty()) {
+        // capturing only a single display
+        vector<string> availableDisplays{};
+        for (auto& display : displays) {
+            availableDisplays.emplace_back(display.monitor_device_name);
+            if (string(display.monitor_device_name) == captureMonitor) {
+                captureRegion = Rect(display.x, display.y, display.width, display.height);
+                cout << "Capturing single display: " << display.monitor_device_name << " (" << display.monitor_friendly_name << ")" << std::endl;
+                break;
+            }
+        }
+        if (captureRegion.IsEmptyArea()) {
+            std::ostringstream imploded;
+            std::copy(availableDisplays.begin(), availableDisplays.end(), std::ostream_iterator<std::string>(imploded, ", "));
+            throw std::invalid_argument("Invalid monitor '" + captureMonitor + "'. Available displays: " + imploded.str());
+        }
+    }
+    else {
+        // capturing a virtual region
+        captureRegion = util_parse_rect(tmpCaptureRegion);
+    }
+
+    cout << "Capture region: X=" << captureRegion.X << ", Y=" << captureRegion.Y << ", W=" << captureRegion.Width << ", H=" << captureRegion.Height << std::endl;
+    cout << std::endl;
+
+    // calculate ideal obs canvas size
     SizeF outputSize{ (float)captureRegion.Width, (float)captureRegion.Height };
 
     if (maxOutputWidth > 0 && outputSize.Width > maxOutputWidth) {
@@ -444,7 +476,6 @@ void run(vector<string> arguments)
     }
 
     // display capture sources
-    auto displays = get_screen_info();
     for (int i = 0; i < displays.size(); i++) {
         auto& display = displays[i];
 
@@ -587,13 +618,18 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[])
         run(utf8argv);
         return 0;
     }
+    catch (const std::invalid_argument& exc) {
+        std::cerr << std::endl << exc.what();
+        std::cerr << std::endl << "Invalid or missing arguments. The application will now exit." << std::endl;
+        return -1;
+    }
     catch (const std::exception& exc) {
         std::cerr << std::endl << exc.what();
-        std::cerr << std::endl << "A fatal error has occurred. The application will exit." << std::endl;
+        std::cerr << std::endl << "A fatal error has occurred. The application will now exit." << std::endl;
         return -1;
     }
     catch (...) {
-        std::cerr << std::endl << "An unknown error has occurred. The application will exit." << std::endl;
+        std::cerr << std::endl << "An unknown error has occurred. The application will now exit." << std::endl;
         return -1;
     }
 }
