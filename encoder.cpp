@@ -130,7 +130,7 @@ obs_encoder_t* create_and_configure_video_encoder(bool hwAccel, bool lowCpuMode,
 
     obs_encoder_t* encVideo = nullptr;
     if (hwAccel) {
-        auto adjustedCrf = CalcCRF(outputSize.Width, outputSize.Height, crf, false);
+        auto adjustedCrf = CalcCRF((int)outputSize.Width, (int)outputSize.Height, crf, false);
         cout << "Actual CRF: " << adjustedCrf << std::endl;
 
         if (encoders.find("jim_nvenc") != encoders.end()) {
@@ -148,7 +148,7 @@ obs_encoder_t* create_and_configure_video_encoder(bool hwAccel, bool lowCpuMode,
     }
 
     if (encVideo == nullptr) {
-        auto adjustedCrfForCpu = CalcCRF(outputSize.Width, outputSize.Height, crf, lowCpuMode);
+        auto adjustedCrfForCpu = CalcCRF((int)outputSize.Width, (int)outputSize.Height, crf, lowCpuMode);
         cout << "Actual CRF: " << adjustedCrfForCpu << std::endl;
 
         encVideo = obs_video_encoder_create("obs_x264", "enc_obs_x264", nullptr, nullptr);

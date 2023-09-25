@@ -14,7 +14,7 @@ $version = $verHeader.Substring($verStart, $verEnd - $verStart)
 
 Write-Host "Creating release for obs-express v$version"
 
-msbuild ObsExpressCpp.sln -p:Configuration=Release -p:Platform=x64
+msbuild ObsExpressCpp.sln -t:Rebuild -p:Configuration=Release -p:Platform=x64
 
 $ReleaseDir = Resolve-Path -Path "build64/rundir/MinSizeRel"
 $BinDir = Resolve-Path -Path "$ReleaseDir/bin/64bit"

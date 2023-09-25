@@ -1,5 +1,5 @@
 #include "getscreens.h"
-#include "windows.h";
+#include "windows.h"
 #include "shellscalingapi.h"
 
 using namespace std;

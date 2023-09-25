@@ -46,9 +46,8 @@ obs_sceneitem_t* mouseSceneItem = 0;
 uint64_t lastMouseClick;
 mouse_info lastMouseClickPosition;
 bool mouseVisible;
-#define ANIMATION_DURATION ((double)400) // ms * ns
 
-void update_mouse_tracker_state(uint32_t x, uint32_t y, float opacity, float scale)
+void update_mouse_tracker_state(float x, float y, float opacity, float scale)
 {
     if (mouseFilter == nullptr || mouseSceneItem == nullptr) {
         return;
@@ -69,20 +68,22 @@ void tick_obs_frame_processing(void* priv, float seconds)
 {
     auto time = util_obs_get_time_ms();
     auto mouseData = get_mouse_info();
+    const float duration = 400;
+
     if (mouseData.pressed) {
         lastMouseClickPosition = mouseData;
         lastMouseClick = time;
     }
 
-    auto lastClickAgo = time - lastMouseClick;
-    if (lastClickAgo < ANIMATION_DURATION) {
+    uint64_t lastClickAgo = time - lastMouseClick;
+    if (lastClickAgo < duration) {
         mouseVisible = true;
         // max 85% opacity
-        float opacity = (1 - (lastClickAgo / ANIMATION_DURATION)) * 85;
-        float mouseZoom = lastMouseClickPosition.dpi / 96;
+        float opacity = (float)((1 - (lastClickAgo / duration)) * 85);
+        float mouseZoom = (float)lastMouseClickPosition.dpi / 96;
 
         // radius: min 15, will grow +35 to max of 50 (*dpi)
-        float radius = (10 + ((lastClickAgo / ANIMATION_DURATION) * 30)) * mouseZoom;
+        float radius = (10 + ((lastClickAgo / duration) * 30)) * mouseZoom;
 
         // scale: intendedRenderedSize/actualImageSize - the tracker.png is 100x100
         float scale = radius / 50;
@@ -134,7 +135,7 @@ void handle_signal_started_recording(void* data, calldata_t* cd)
 void handle_signal_stopped_recording(void* data, calldata_t* cd)
 {
     obs_output_t* output = (obs_output_t*)calldata_ptr(cd, "output");
-    int code = calldata_int(cd, "code");
+    uint32_t code = (uint32_t)calldata_int(cd, "code");
     const char* output_error = obs_output_get_last_error(output);
 
     json rec_stop;
@@ -493,7 +494,7 @@ void run(vector<string> arguments)
             obs_data_release(opt);
 
             obs_sceneitem_t* sceneItem = obs_scene_add(scene, source);
-            vec2 pos{ displayBounds.X - captureRegion.X , displayBounds.Y - captureRegion.Y };
+            vec2 pos{ (float)(displayBounds.X - captureRegion.X) , (float)(displayBounds.Y - captureRegion.Y) };
             obs_sceneitem_set_pos(sceneItem, &pos);
         }
     }

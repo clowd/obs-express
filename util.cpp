@@ -81,7 +81,7 @@ Color util_parse_color(const string& input)
     return r;
 }
 
-string get_obs_output_errorcode_string(int code)
+string get_obs_output_errorcode_string(uint32_t code)
 {
     switch (code) {
     case OBS_OUTPUT_SUCCESS:
@@ -103,6 +103,8 @@ string get_obs_output_errorcode_string(int code)
     case OBS_OUTPUT_ENCODE_ERROR:
         return "Encoder error";
     }
+
+    return "Unknown error: " + to_string(code);
 }
 
 std::string util_string_utf8_encode(const std::wstring& wstr)
