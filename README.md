@@ -36,7 +36,8 @@ Optional:
   --hwAccel               Use hardware encoding if available
   --noCursor              Do not render mouse cursor in recording
   --pause                 Pause before recording until start command
-  --preview {hwnd}        Render a recording preview to window handle
+  --preview {hWnd}        Render a recording preview to window handle
+  --omux {name:value}     Add custom muxer/ffmpeg output options
 ```
 
 The parameter `--output` is required, and you must specify either `--region` or `--monitor`. You can retrieve `szDevice` for a monitor using win32 `GetMonitorInfo`.

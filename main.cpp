@@ -262,7 +262,7 @@ void run(vector<string> arguments)
     // handle command line arguments
     argh::parser cmdl;
     cmdl.add_params({ "adapter", "region", "speaker", "microphone", "fps", "crf", "maxWidth", "maxHeight",
-        "output", "trackerColor", "preview", "monitor" });
+        "output", "trackerColor", "preview", "monitor", "omux" });
     cmdl.parse(arguments);
 
     cout << std::endl;
@@ -294,7 +294,8 @@ void run(vector<string> arguments)
         cout << "  --hwAccel               Use hardware encoding if available" << std::endl;
         cout << "  --noCursor              Do not render mouse cursor in recording" << std::endl;
         cout << "  --pause                 Pause before recording until start command" << std::endl;
-        cout << "  --preview {hwnd}        Render a recording preview to window handle" << std::endl;
+        cout << "  --preview {hWnd}        Render a recording preview to window handle" << std::endl;
+        cout << "  --omux {name:value}     Add custom muxer/ffmpeg output options" << std::endl;
         return;
     }
 
@@ -337,6 +338,7 @@ void run(vector<string> arguments)
 
     auto speakers = cmdl.params("speaker");
     auto microphones = cmdl.params("microphone");
+    auto opt_muxer = cmdl.params("omux");
 
     string tmpCaptureRegion, tmpTrackerColor, outputFile, captureMonitor;
     tmpCaptureRegion = cmdl("region").str();
@@ -501,6 +503,16 @@ void run(vector<string> arguments)
     auto encAudio = obs_audio_encoder_create("ffmpeg_aac", "audio_encoder", nullptr, 0, nullptr);
     auto muxerOptions = obs_data_create();
     obs_data_set_string(muxerOptions, "path", outputFile.c_str());
+
+    for (auto& kvp : opt_muxer) {
+        auto idx = kvp.second.find_first_of(':', 0);
+        if (idx == string::npos || idx == kvp.second.length() - 1)
+            throw invalid_argument("Option '--" + kvp.first + " " + kvp.second + "' invalid. Must be in the format of a key-value pair separated by the ':' character.");
+        auto k = kvp.second.substr(0, idx);
+        auto v = kvp.second.substr(idx + 1);
+        obs_data_set_string(muxerOptions, k.c_str(), v.c_str());
+    }
+
     muxer = obs_output_create("ffmpeg_muxer", "main_output_muxer", muxerOptions, nullptr);
 
     obs_encoder_set_video(encVideo, obs_get_video());
