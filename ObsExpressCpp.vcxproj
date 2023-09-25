@@ -173,11 +173,13 @@
     <PreBuildEvent />
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="encoder.cpp" />
     <ClCompile Include="getscreens.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="argh.h" />
+    <ClInclude Include="encoder.h" />
     <ClInclude Include="getscreens.h" />
     <ClInclude Include="json.hpp" />
     <ClInclude Include="version.h" />
